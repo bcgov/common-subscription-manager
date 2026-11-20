@@ -8,7 +8,8 @@ import { HttpException } from '@nestjs/common'
 import type { CreateUserDto } from './dto/create-user.dto'
 import type { UpdateUserDto } from './dto/update-user.dto'
 import type { UserDto } from './dto/user.dto'
-import { PrismaService } from '../prisma.service'
+import { getRepositoryToken } from '@nestjs/typeorm'
+import { User } from './entities/user.entity'
 describe('UserController', () => {
   let controller: UsersController
   let usersService: UsersService
@@ -20,7 +21,7 @@ describe('UserController', () => {
       providers: [
         UsersService,
         {
-          provide: PrismaService,
+          provide: getRepositoryToken(User),
           useValue: {},
         },
       ],

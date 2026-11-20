@@ -1,44 +1,31 @@
 import type { TestingModule } from '@nestjs/testing'
 import { Test } from '@nestjs/testing'
+import { getRepositoryToken } from '@nestjs/typeorm'
+import type { Repository } from 'typeorm'
+import {
+  Equal,
+  In,
+  IsNull,
+  LessThan,
+  LessThanOrEqual,
+  Like,
+  MoreThan,
+  MoreThanOrEqual,
+  Not,
+} from 'typeorm'
 import { UsersService } from './users.service'
-import { PrismaService } from '../prisma.service'
-import { Prisma } from '../../generated/prisma/client.js'
+import { User } from './entities/user.entity'
 
 describe('UserService', () => {
   let service: UsersService
-  let prisma: PrismaService
+  let repository: Repository<User>
 
-  const savedUser1 = {
-    id: new Prisma.Decimal(1),
-    name: 'Test Numone',
-    email: 'numone@test.com',
-  }
-  const savedUser2 = {
-    id: new Prisma.Decimal(2),
-    name: 'Test Numtwo',
-    email: 'numtwo@test.com',
-  }
-  const oneUser = {
-    id: 1,
-    name: 'Test Numone',
-    email: 'numone@test.com',
-  }
-  const updateUser = {
-    id: 1,
-    name: 'Test Numone update',
-    email: 'numoneupdate@test.com',
-  }
-  const updatedUser = {
-    id: new Prisma.Decimal(1),
-    name: 'Test Numone update',
-    email: 'numoneupdate@test.com',
-  }
-
-  const twoUser = {
-    id: 2,
-    name: 'Test Numtwo',
-    email: 'numtwo@test.com',
-  }
+  const savedUser1: User = { id: '1', name: 'Test Numone', email: 'numone@test.com' }
+  const savedUser2: User = { id: '2', name: 'Test Numtwo', email: 'numtwo@test.com' }
+  const oneUser = { id: 1, name: 'Test Numone', email: 'numone@test.com' }
+  const updateUser = { id: 1, name: 'Test Numone update', email: 'numoneupdate@test.com' }
+  const updatedUser: User = { id: '1', name: 'Test Numone update', email: 'numoneupdate@test.com' }
+  const twoUser = { id: 2, name: 'Test Numtwo', email: 'numtwo@test.com' }
 
   const userArray = [oneUser, twoUser]
   const savedUserArray = [savedUser1, savedUser2]
@@ -48,23 +35,21 @@ describe('UserService', () => {
       providers: [
         UsersService,
         {
-          provide: PrismaService,
+          provide: getRepositoryToken(User),
           useValue: {
-            users: {
-              findMany: vi.fn().mockResolvedValue(savedUserArray),
-              findUnique: vi.fn().mockResolvedValue(savedUser1),
-              create: vi.fn().mockResolvedValue(savedUser1),
-              update: vi.fn().mockResolvedValue(updatedUser),
-              delete: vi.fn().mockResolvedValue(true),
-              count: vi.fn(),
-            },
+            find: vi.fn().mockResolvedValue(savedUserArray),
+            findOneBy: vi.fn().mockResolvedValue(savedUser1),
+            findAndCount: vi.fn().mockResolvedValue([[], 0]),
+            create: vi.fn((u) => u),
+            save: vi.fn().mockResolvedValue(savedUser1),
+            delete: vi.fn().mockResolvedValue({ affected: 1 }),
           },
         },
       ],
     }).compile()
 
     service = module.get<UsersService>(UsersService)
-    prisma = module.get<PrismaService>(PrismaService)
+    repository = module.get<Repository<User>>(getRepositoryToken(User))
   })
 
   it('should be defined', () => {
@@ -74,7 +59,7 @@ describe('UserService', () => {
   describe('createOne', () => {
     it('should successfully add a user', async () => {
       await expect(service.create(oneUser)).resolves.toEqual(oneUser)
-      expect(prisma.users.create).toBeCalledTimes(1)
+      expect(repository.save).toBeCalledTimes(1)
     })
   })
 
@@ -88,14 +73,20 @@ describe('UserService', () => {
   describe('findOne', () => {
     it('should get a single user', async () => {
       await expect(service.findOne(1)).resolves.toEqual(oneUser)
+      expect(repository.findOneBy).toHaveBeenCalledWith({ id: '1' })
+    })
+    it('should return null when the user does not exist', async () => {
+      vi.spyOn(repository, 'findOneBy').mockResolvedValueOnce(null)
+      await expect(service.findOne(99)).resolves.toBeNull()
     })
   })
 
   describe('update', () => {
-    it('should call the update method', async () => {
+    it('should call the save method', async () => {
+      vi.spyOn(repository, 'save').mockResolvedValueOnce(updatedUser)
       const user = await service.update(1, updateUser)
       expect(user).toEqual(updateUser)
-      expect(prisma.users.update).toBeCalledTimes(1)
+      expect(repository.save).toBeCalledTimes(1)
     })
   })
 
@@ -105,7 +96,7 @@ describe('UserService', () => {
     })
     it('should return {deleted: false, message: err.message}', async () => {
       const repoSpy = vi
-        .spyOn(prisma.users, 'delete')
+        .spyOn(repository, 'delete')
         .mockRejectedValueOnce(new Error('Bad Delete Method.'))
       await expect(service.remove(-1)).resolves.toEqual({
         deleted: false,
@@ -116,124 +107,74 @@ describe('UserService', () => {
   })
 
   describe('searchUsers', () => {
+    const sort = '[{ "name": "asc" }]'
+    const filter = '[{ "key": "name", "operation": "eq", "value": "Peter" }]'
+
     it('should return a list of users with pagination and filtering', async () => {
-      const page = 1
-      const limit = 10
-      const sortObject: Prisma.SortOrder = 'asc'
-      const sort: any = `[{ "name": "${sortObject}" }]`
-      const filter: any = '[{ "name": { "equals": "Peter" } }]'
+      vi.spyOn(repository, 'findAndCount').mockResolvedValueOnce([[savedUser1], 1])
+      const result = await service.searchUsers(2, 5, sort, filter)
 
-      vi.spyOn(prisma.users, 'findMany').mockResolvedValue([])
-      vi.spyOn(prisma.users, 'count').mockResolvedValue(0)
-      const result = await service.searchUsers(page, limit, sort, filter)
-
-      expect(result).toEqual({
-        users: [],
-        page,
-        limit,
-        total: 0,
-        totalPages: 0,
+      expect(repository.findAndCount).toHaveBeenCalledWith({
+        skip: 5,
+        take: 5,
+        order: { name: 'ASC' },
+        where: { name: Equal('Peter') },
       })
+      expect(result).toEqual({ users: [oneUser], page: 2, limit: 5, total: 1, totalPages: 1 })
     })
 
-    it('given no page should return a list of users with pagination and filtering with default page 1', async () => {
-      const limit = 10
-      const sortObject: Prisma.SortOrder = 'asc'
-      const sort: any = `[{ "name": "${sortObject}" }]`
-      const filter: any = '[{ "name": { "equals": "Peter" } }]'
-
-      vi.spyOn(prisma.users, 'findMany').mockResolvedValue([])
-      vi.spyOn(prisma.users, 'count').mockResolvedValue(0)
-      const result = await service.searchUsers(null, limit, sort, filter)
-
-      expect(result).toEqual({
-        users: [],
-        page: 1,
-        limit,
-        total: 0,
-        totalPages: 0,
-      })
-    })
-    it('given no limit should return a list of users with pagination and filtering with default limit 10', async () => {
-      const page = 1
-      const sortObject: Prisma.SortOrder = 'asc'
-      const sort: any = `[{ "name": "${sortObject}" }]`
-      const filter: any = '[{ "name": { "equals": "Peter" } }]'
-
-      vi.spyOn(prisma.users, 'findMany').mockResolvedValue([])
-      vi.spyOn(prisma.users, 'count').mockResolvedValue(0)
-      const result = await service.searchUsers(page, null, sort, filter)
-
-      expect(result).toEqual({
-        users: [],
-        page: 1,
-        limit: 10,
-        total: 0,
-        totalPages: 0,
-      })
+    it('given no page should default to page 1', async () => {
+      const result = await service.searchUsers(null as unknown as number, 10, sort, filter)
+      expect(result).toEqual({ users: [], page: 1, limit: 10, total: 0, totalPages: 0 })
     })
 
-    it('given  limit greater than 200 should return a list of users with pagination and filtering with default limit 10', async () => {
-      const page = 1
-      const limit = 201
-      const sortObject: Prisma.SortOrder = 'asc'
-      const sort: any = `[{ "name": "${sortObject}" }]`
-      const filter: any = '[{ "name": { "equals": "Peter" } }]'
-
-      vi.spyOn(prisma.users, 'findMany').mockResolvedValue([])
-      vi.spyOn(prisma.users, 'count').mockResolvedValue(0)
-      const result = await service.searchUsers(page, limit, sort, filter)
-
-      expect(result).toEqual({
-        users: [],
-        page: 1,
-        limit: 10,
-        total: 0,
-        totalPages: 0,
-      })
+    it('given no limit should default to limit 10', async () => {
+      const result = await service.searchUsers(1, null as unknown as number, sort, filter)
+      expect(result).toEqual({ users: [], page: 1, limit: 10, total: 0, totalPages: 0 })
     })
-    it('given  invalid JSON should throw error', async () => {
-      const page = 1
-      const limit = 201
-      const sortObject: Prisma.SortOrder = 'asc'
-      const sort: any = `[{ "name" "${sortObject}" }]`
-      const filter: any = '[{ "name": { "equals": "Peter" } }]'
-      try {
-        await service.searchUsers(page, limit, sort, filter)
-      } catch (e) {
-        expect(e).toEqual(new Error('Invalid query parameters'))
-      }
+
+    it('given limit greater than 200 should default to limit 10', async () => {
+      const result = await service.searchUsers(1, 201, sort, filter)
+      expect(result).toEqual({ users: [], page: 1, limit: 10, total: 0, totalPages: 0 })
+    })
+
+    it('given invalid JSON should throw error', async () => {
+      await expect(service.searchUsers(1, 10, '[{ "name" "asc" }]', filter)).rejects.toEqual(
+        new Error('Invalid query parameters'),
+      )
     })
   })
-  describe('convertFiltersToPrismaFormat', () => {
-    it("should convert input filters to prisma's filter format", () => {
-      const inputFilter = [
-        { key: 'a', operation: 'like', value: '1' },
-        { key: 'b', operation: 'eq', value: '2' },
-        { key: 'c', operation: 'neq', value: '3' },
-        { key: 'd', operation: 'gt', value: '4' },
-        { key: 'e', operation: 'gte', value: '5' },
-        { key: 'f', operation: 'lt', value: '6' },
-        { key: 'g', operation: 'lte', value: '7' },
-        { key: 'h', operation: 'in', value: ['8'] },
-        { key: 'i', operation: 'notin', value: ['9'] },
-        { key: 'j', operation: 'isnull', value: '10' },
-      ]
 
-      const expectedOutput = {
-        a: { contains: '1' },
-        b: { equals: '2' },
-        c: { not: { equals: '3' } },
-        d: { gt: '4' },
-        e: { gte: '5' },
-        f: { lt: '6' },
-        g: { lte: '7' },
-        h: { in: ['8'] },
-        i: { not: { in: ['9'] } },
-        j: { equals: null },
-      }
+  describe('convertSortToTypeOrmFormat', () => {
+    it('should accept an object or an array, normalise direction and drop unknown fields', () => {
+      expect(service.convertSortToTypeOrmFormat({ name: 'ASC' })).toEqual({ name: 'ASC' })
+      expect(
+        service.convertSortToTypeOrmFormat([{ name: 'desc' }, { email: 'asc' }, { bogus: 'asc' }]),
+      ).toEqual({ name: 'DESC', email: 'ASC' })
+    })
+  })
 
-      expect(service.convertFiltersToPrismaFormat(inputFilter)).toStrictEqual(expectedOutput)
+  describe('convertFiltersToTypeOrmFormat', () => {
+    it('should convert each operation to the matching TypeORM operator', () => {
+      const ops = (key: 'id' | 'name' | 'email', operation: string, value: unknown) =>
+        service.convertFiltersToTypeOrmFormat([{ key, operation, value }])[key]
+
+      expect(ops('name', 'like', '1')).toEqual(Like('%1%'))
+      expect(ops('name', 'eq', '2')).toEqual(Equal('2'))
+      expect(ops('name', 'neq', '3')).toEqual(Not(Equal('3')))
+      expect(ops('id', 'gt', '4')).toEqual(MoreThan('4'))
+      expect(ops('id', 'gte', '5')).toEqual(MoreThanOrEqual('5'))
+      expect(ops('id', 'lt', '6')).toEqual(LessThan('6'))
+      expect(ops('id', 'lte', '7')).toEqual(LessThanOrEqual('7'))
+      expect(ops('email', 'in', ['8'])).toEqual(In(['8']))
+      expect(ops('email', 'notin', ['9'])).toEqual(Not(In(['9'])))
+      expect(ops('email', 'isnull', '10')).toEqual(IsNull())
+    })
+
+    it('should ignore fields that are not on the entity', () => {
+      expect(
+        service.convertFiltersToTypeOrmFormat([{ key: 'password', operation: 'eq', value: 'x' }]),
+      ).toEqual({})
     })
   })
 })

@@ -594,7 +594,7 @@ To safely automate dependency updates, runtime health checks are mandatory to ca
 ### QuickStart Health Check Implementation
 
 This template provides out-of-the-box support for self-healing and verification through container probes:
-- **NestJS Backend**: Implements an `/api/health` endpoint using NestJS Terminus (currently checks DB connectivity via Prisma).
+- **NestJS Backend**: Implements an `/api/health` endpoint using NestJS Terminus (currently checks DB connectivity via TypeORM).
 - **Frontend (Caddy/Vite)**: OpenShift readiness/liveness probes are configured to check `/` to confirm the web server is responsive and serving assets.
 
 *Tip: For a fully mature maintenance mode setup, customize the backend health checks to query external APIs and database migrations. If a dependency goes down, the health check should return `503 Service Unavailable`, blocking the automated merge.*

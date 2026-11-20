@@ -1,82 +1,68 @@
 import { Injectable } from '@nestjs/common'
-import { PrismaService } from '../prisma.service'
+import { InjectRepository } from '@nestjs/typeorm'
+import type { FindOptionsOrder, FindOptionsWhere } from 'typeorm'
+import {
+  Equal,
+  In,
+  IsNull,
+  LessThan,
+  LessThanOrEqual,
+  Like,
+  MoreThan,
+  MoreThanOrEqual,
+  Not,
+  Repository,
+} from 'typeorm'
 
 import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
 import { UserDto } from './dto/user.dto'
-import { Prisma } from '../../generated/prisma/client.js'
+import { User } from './entities/user.entity'
+
+type FilterItem = { key: string; operation: string; value: unknown }
+
+const SEARCHABLE_FIELDS = new Set<keyof User>(['id', 'name', 'email'])
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
+  ) {}
+
+  private toDto(user: User): UserDto {
+    return { id: Number(user.id), name: user.name, email: user.email }
+  }
 
   async create(user: CreateUserDto): Promise<UserDto> {
-    const savedUser = await this.prisma.users.create({
-      data: {
-        name: user.name,
-        email: user.email,
-      },
-    })
-
-    return {
-      id: savedUser.id.toNumber(),
-      name: savedUser.name,
-      email: savedUser.email,
-    }
+    const savedUser = await this.usersRepository.save(
+      this.usersRepository.create({ name: user.name, email: user.email }),
+    )
+    return this.toDto(savedUser)
   }
 
   async findAll(): Promise<UserDto[]> {
-    const users = await this.prisma.users.findMany()
-    return users.flatMap((user) => {
-      const userDto: UserDto = {
-        id: user.id.toNumber(),
-        name: user.name,
-        email: user.email,
-      }
-      return userDto
-    })
+    const users = await this.usersRepository.find()
+    return users.map((user) => this.toDto(user))
   }
 
   async findOne(id: number): Promise<UserDto | null> {
-    const user = await this.prisma.users.findUnique({
-      where: {
-        id: new Prisma.Decimal(id),
-      },
-    })
-    if (!user) {
-      return null
-    }
-    return {
-      id: user.id.toNumber(),
-      name: user.name,
-      email: user.email,
-    }
+    const user = await this.usersRepository.findOneBy({ id: String(id) })
+    return user ? this.toDto(user) : null
   }
 
   async update(id: number, updateUserDto: UpdateUserDto): Promise<UserDto> {
-    const user = await this.prisma.users.update({
-      where: {
-        id: new Prisma.Decimal(id),
-      },
-      data: {
-        name: updateUserDto.name,
-        email: updateUserDto.email,
-      },
+    const user = await this.usersRepository.save({
+      id: String(id),
+      name: updateUserDto.name,
+      email: updateUserDto.email,
     })
-    return {
-      id: user.id.toNumber(),
-      name: user.name,
-      email: user.email,
-    }
+    return this.toDto(user)
   }
 
   async remove(id: number): Promise<{ deleted: boolean; message?: string }> {
     try {
-      await this.prisma.users.delete({
-        where: {
-          id: new Prisma.Decimal(id),
-        },
-      })
+      await this.usersRepository.delete({ id: String(id) })
       return { deleted: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -87,7 +73,7 @@ export class UsersService {
   async searchUsers(
     page: number,
     limit: number,
-    sort: string, // JSON string to store sort key and sort value, ex: [{"name":"desc"},{"email":"asc"}]
+    sort: string, // JSON sort, ex: [{"name":"desc"},{"email":"asc"}] or {"name":"ASC"}
     filter: string, // JSON array for key, operation and value, ex: [{"key": "name", "operation": "like", "value": "Jo"}]
   ): Promise<any> {
     page = page || 1
@@ -95,30 +81,26 @@ export class UsersService {
       limit = 10
     }
 
-    let sortObj: any
-    let filterObj: Array<{ key: string; operation: string; value: unknown }>
+    let order: FindOptionsOrder<User>
+    let filterObj: FilterItem[]
     try {
-      sortObj = JSON.parse(sort)
+      order = this.convertSortToTypeOrmFormat(JSON.parse(sort))
       const parsedFilter = JSON.parse(filter)
-      // Ensure filterObj is an array
       filterObj = Array.isArray(parsedFilter) ? parsedFilter : []
     } catch {
       throw new Error('Invalid query parameters')
     }
-    const users = await this.prisma.users.findMany({
+    const where = this.convertFiltersToTypeOrmFormat(filterObj)
+
+    const [users, count] = await this.usersRepository.findAndCount({
       skip: (page - 1) * limit,
       take: parseInt(String(limit)),
-      orderBy: sortObj,
-      where: this.convertFiltersToPrismaFormat(filterObj),
-    })
-
-    const count = await this.prisma.users.count({
-      orderBy: sortObj,
-      where: this.convertFiltersToPrismaFormat(filterObj),
+      order,
+      where,
     })
 
     return {
-      users,
+      users: users.map((user) => this.toDto(user)),
       page,
       limit,
       total: count,
@@ -126,34 +108,62 @@ export class UsersService {
     }
   }
 
-  public convertFiltersToPrismaFormat(
-    filterObj: Array<{ key: string; operation: string; value: unknown }>,
-  ): Record<string, unknown> {
-    const prismaFilterObj: Record<string, unknown> = {}
-
-    for (const item of filterObj) {
-      if (item.operation === 'like') {
-        prismaFilterObj[item.key] = { contains: item.value }
-      } else if (item.operation === 'eq') {
-        prismaFilterObj[item.key] = { equals: item.value }
-      } else if (item.operation === 'neq') {
-        prismaFilterObj[item.key] = { not: { equals: item.value } }
-      } else if (item.operation === 'gt') {
-        prismaFilterObj[item.key] = { gt: item.value }
-      } else if (item.operation === 'gte') {
-        prismaFilterObj[item.key] = { gte: item.value }
-      } else if (item.operation === 'lt') {
-        prismaFilterObj[item.key] = { lt: item.value }
-      } else if (item.operation === 'lte') {
-        prismaFilterObj[item.key] = { lte: item.value }
-      } else if (item.operation === 'in') {
-        prismaFilterObj[item.key] = { in: item.value }
-      } else if (item.operation === 'notin') {
-        prismaFilterObj[item.key] = { not: { in: item.value } }
-      } else if (item.operation === 'isnull') {
-        prismaFilterObj[item.key] = { equals: null }
+  /** Accepts `{name: 'asc'}` or `[{name: 'asc'}, {email: 'desc'}]`; ignores unknown fields. */
+  public convertSortToTypeOrmFormat(sortObj: unknown): FindOptionsOrder<User> {
+    const entries = (Array.isArray(sortObj) ? sortObj : [sortObj]).flatMap((s) =>
+      s && typeof s === 'object' ? Object.entries(s as Record<string, unknown>) : [],
+    )
+    const order: Record<string, 'ASC' | 'DESC'> = {}
+    for (const [key, dir] of entries) {
+      if (SEARCHABLE_FIELDS.has(key as keyof User)) {
+        order[key] = String(dir).toUpperCase() === 'DESC' ? 'DESC' : 'ASC'
       }
     }
-    return prismaFilterObj
+    return order as FindOptionsOrder<User>
+  }
+
+  /** Converts the API filter format into TypeORM find operators; ignores unknown fields. */
+  public convertFiltersToTypeOrmFormat(filterObj: FilterItem[]): FindOptionsWhere<User> {
+    const where: Record<string, unknown> = {}
+
+    for (const item of filterObj) {
+      if (!SEARCHABLE_FIELDS.has(item.key as keyof User)) {
+        continue
+      }
+      const value = item.value
+      switch (item.operation) {
+        case 'like':
+          where[item.key] = Like(`%${String(value)}%`)
+          break
+        case 'eq':
+          where[item.key] = Equal(value)
+          break
+        case 'neq':
+          where[item.key] = Not(Equal(value))
+          break
+        case 'gt':
+          where[item.key] = MoreThan(value)
+          break
+        case 'gte':
+          where[item.key] = MoreThanOrEqual(value)
+          break
+        case 'lt':
+          where[item.key] = LessThan(value)
+          break
+        case 'lte':
+          where[item.key] = LessThanOrEqual(value)
+          break
+        case 'in':
+          where[item.key] = In(value as unknown[])
+          break
+        case 'notin':
+          where[item.key] = Not(In(value as unknown[]))
+          break
+        case 'isnull':
+          where[item.key] = IsNull()
+          break
+      }
+    }
+    return where as FindOptionsWhere<User>
   }
 }
