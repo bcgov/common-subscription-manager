@@ -93,3 +93,8 @@ sequenceDiagram
 
     Note over Notify,CSM: On the next send, get_recipients no longer returns this person for this topic
 ```
+
+## Design
+
+- [Data model (draft)](docs/data-model.md)
+- [API specification (draft, OpenAPI 3.1)](docs/openapi.yaml)
