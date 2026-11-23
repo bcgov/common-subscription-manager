@@ -11,9 +11,13 @@ info:
     | Caller | Authentication | Uses |
     |---|---|---|
     | A tenant's backend (e.g. a line-of-business app) | `tenantAuth` | Topics, subscriptions, contacts, suppressions, history |
-    | Notify | `notifyAuth`, or `webhookSignature` for webhooks | Recipient lookup, inbound SMS, delivery events |
+    | Notify | `notifyAuth`; webhooks also need `webhookSignature` | Recipient lookup, inbound SMS, delivery events |
     | The public, through links CSM sends | A token in the path | Confirm, unsubscribe, manage subscriptions |
     | CSM operators | `adminAuth` | Tenants |
+
+    Every caller except the public reaches CSM through the Kong API gateway. Kong checks the
+    API key and applies rate limits, then CSM maps the credential to a tenant, or to Notify.
+    Public links are served from a separate, rate-limited hostname.
 
     **Conventions**
 
@@ -768,7 +772,8 @@ paths:
       operationId: receiveInboundSms
       summary: An SMS reply received by Notify
       security:
-        - webhookSignature: []
+        - notifyAuth: []
+          webhookSignature: []
       description: |
         Notify receives the text from the provider and forwards it here. CSM handles:
 
@@ -801,7 +806,8 @@ paths:
       operationId: receiveDeliveryEvent
       summary: A delivery outcome from Notify that affects who can be contacted
       security:
-        - webhookSignature: []
+        - notifyAuth: []
+          webhookSignature: []
       description: |
         | `type` | What CSM does |
         |---|---|
@@ -1091,31 +1097,33 @@ paths:
 components:
   securitySchemes:
     tenantAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+      type: apiKey
+      in: header
+      name: X-API-KEY
       description: |
-        Access token for a tenant's API client, issued the same way as for Notify's API.
-        It identifies the tenant, and every call is limited to that tenant's data.
+        A tenant's API key, issued through the API Services Portal the same way as for
+        Notify's API. Kong checks it; CSM maps the credential to a tenant, and every call is
+        limited to that tenant's data.
     notifyAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+      type: apiKey
+      in: header
+      name: X-API-KEY
       description: |
-        Access token for Notify's own service client. It may query recipients for any tenant;
-        the tenant is named in the request.
+        Notify's own API key, separate from every tenant's. It may query recipients for any
+        tenant, and the tenant is named in the request.
     webhookSignature:
       type: apiKey
       in: header
       name: X-Notify-Signature
       description: |
-        Signature on webhooks from Notify, made with the secret shared when CSM's system-level
-        webhook was registered. The exact header and algorithm follow Notify's webhook delivery.
+        HMAC signature on the body of a webhook from Notify, made with the secret shared when
+        CSM's system-level webhook was registered. Required together with `notifyAuth`. The
+        exact header and algorithm follow Notify's webhook delivery.
     adminAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Access token for a CSM operator.
+      description: Keycloak access token for a CSM operator.
 
   parameters:
     TopicKey:
