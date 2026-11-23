@@ -15,7 +15,7 @@ This is the first draft of the Common Subscription Manager (CSM) data model. It 
 | 1 | A subscriber chooses **topics**. Each topic declares its own **filter fields**, which makes the model generic. Phase 1 supports exact matches; a field can take several values. Phase 2 adds numeric thresholds. |
 | 2 | The concept is called a **topic**, not an event, so it isn't tied one-to-one to a Notify event type. |
 | 3 | CSM stores **verified addresses**, plus an optional external subject ID. It doesn't look up identities from other systems. |
-| 4 | `STOP` opts a number out of everything sent from that sender number. Topic keywords (e.g. `AQ OFF`) and links hosted by CSM opt out of one topic. |
+| 4 | `STOP` opts a number out of everything sent from that sender number. Topic keywords (e.g. `ROADS OFF`) and links hosted by CSM opt out of one topic. |
 | 5 | Notify owns the phone numbers and receives inbound texts. It forwards them to CSM as webhooks, and CSM never connects to an SMS provider. |
 | 6 | Unsubscribe links for each recipient, plus a "manage subscriptions" page for each topic. |
 | 7 | `get_recipients` leaves out anyone opted out or suppressed; Notify doesn't filter. |
@@ -55,7 +55,6 @@ erDiagram
         uuid tenant_id FK
         varchar key "unique per tenant"
         varchar name
-        boolean confirmation_required
         int pending_expiry_minutes
         varchar redirect_url
         varchar status FK
@@ -64,9 +63,10 @@ erDiagram
         uuid id PK
         uuid topic_id FK
         varchar channel FK "EMAIL or SMS"
+        boolean confirmation_required "double opt-in"
         varchar confirmation_template_id "Notify template"
         text confirmation_template_inline
-        varchar sms_keyword "e.g. AQ, unique"
+        varchar sms_keyword "e.g. ROADS, unique"
     }
     filter_field {
         uuid id PK
@@ -133,6 +133,7 @@ erDiagram
         uuid subscription_id FK
         varchar purpose FK "CONFIRM or MANAGE"
         varchar token_hash UK
+        varchar sender "SMS CONFIRM: number it was sent from"
         timestamptz expires_at
         timestamptz used_at
     }
@@ -165,15 +166,17 @@ erDiagram
 
 **`tenant`**: a service that uses CSM. `external_id` holds the CSTAR tenant ID, the same one Notify uses, so the two systems agree on who a tenant is. Every API call authenticates as a tenant and sees only its own data.
 
-**`topic`**: something a person can subscribe to, such as air-quality alerts. Its `key` is what apps and Notify pass to the API, and it's unique within a tenant.
-- `confirmation_required`: new subscriptions stay `PENDING` until the person confirms by link or reply.
-- `pending_expiry_minutes`: how long an unconfirmed subscription waits before it becomes `EXPIRED`.
+**`topic`**: something a person can subscribe to, such as road-closure alerts. Its `key` is what apps and Notify pass to the API, and it's unique within a tenant.
+- `pending_expiry_minutes`: how long an unconfirmed subscription waits before it becomes `EXPIRED`, on any channel that requires confirmation.
 - `redirect_url`: where CSM's hosted pages send the person afterwards. If it's empty, CSM shows its own page.
 
 **`topic_channel`**: which channels a topic offers, and the settings for each.
-- **Confirmation template:** either a Notify template ID or inline text.
-- **`sms_keyword`:** used for topic opt-out (`AQ OFF`). Keywords are **unique across all of CSM**, so every sender number recognises every topic keyword. `AQ OFF` means the same topic whichever number it's sent to, so an inbound text can be matched to a topic without knowing which tenant it's for. Keywords are claimed first come, first served, and can't be one of the system keywords below or any provider's reserved word (`STOP`, `END`, `CANCEL`, `QUIT`, `UNSUBSCRIBE`, `START`, `HELP`, `INFO`, …).
-- **System keywords are separate:** `STOP`, `START`, `HELP` and `INFO` behave the same on every number and belong to no topic.
+- **`confirmation_required`:** double opt-in, set per channel so a topic can, for example, confirm SMS but not email. New subscriptions on that channel stay `PENDING` until the person confirms: by the link for email, and by replying `YES` (or `<keyword> YES`) or the link for SMS. Changing it affects only new subscriptions.
+- **Confirmation template:** either a Notify template ID or inline text. Required when `confirmation_required` is on.
+- **`sms_keyword`:** used for topic opt-out (`ROADS OFF`). Keywords are **unique across all of CSM**, so every sender number recognises every topic keyword. `ROADS OFF` means the same topic whichever number it's sent to, so an inbound text can be matched to a topic without knowing which tenant it's for. Keywords are claimed first come, first served, and can't be one of the system keywords below or any provider's reserved word (`STOP`, `END`, `CANCEL`, `QUIT`, `UNSUBSCRIBE`, `START`, `HELP`, `INFO`, `YES`, …).
+- The keyword is also used for SMS confirmation: `ROADS YES` confirms a pending subscription to that topic.
+- **System keywords are separate:** `STOP`, `START`, `HELP`, `INFO` and `YES` behave the same on every number and belong to no topic.
+- **A plain `YES`** confirms the pending subscription whose confirmation was sent to that phone from that sender number (`action_token.sender`). If several match, for example on a short code shared by tenants, nothing is confirmed and CSM asks the person to reply `<keyword> YES`. Confirming the wrong subscription would be worse than asking.
 
 **`filter_field`**: the filter fields a topic declares; this is what keeps the model generic.
 - Phase 1 allows only `data_type = TEXT` with `match_type = EXACT`.
@@ -217,12 +220,12 @@ erDiagram
 
 **`inbound_message`**: each inbound text forwarded by Notify.
 - `notify_event_id` is unique, so a webhook delivered twice is processed only once.
-- `outcome` records what CSM did with the text, for example `STOP_APPLIED`, `KEYWORD_OPT_OUT` or `UNRECOGNISED`.
+- `outcome` records what CSM did with the text, for example `STOP_APPLIED`, `KEYWORD_OPT_OUT`, `CONFIRMED` or `UNRECOGNISED`.
 
 ### Tokens and audit
 
 **`action_token`**: short-lived links, stored only as a hash of the token:
-- `CONFIRM`: confirms a subscription. Single use, and expires with the pending subscription.
+- `CONFIRM`: confirms a subscription, by the link or, for SMS, by a `YES` reply. Single use, and expires with the pending subscription. For SMS, `sender` records the number the confirmation was sent from, so a plain `YES` can be matched to it.
 - `MANAGE`: signs in to the manage page. It can be used repeatedly for 30 minutes, because the page makes several calls with it.
 
 **Unsubscribe links are not stored in a table.** `get_recipients` would otherwise write a row for every recipient on every send. Each link instead carries a signed value made from the subscription ID and its `token_version`. CSM checks the signature when the link is used. Increasing `token_version` cancels all of that subscription's old links.
