@@ -83,7 +83,9 @@ jobs:
             parameters: -p DB_PVC_SIZE="256Mi"
           - name: backend
             file: backend/openshift.deploy.yml
+            # PR environments share DEV's SSO realm; TEST and PROD have their own.
             parameters: -p IMAGE_TAG="${{ inputs.tag }}"
+              -p KEYCLOAK_ISSUER="https://${{ inputs.environment == 'prod' && 'loginproxy.gov.bc.ca' || inputs.environment == 'test' && 'test.loginproxy.gov.bc.ca' || 'dev.loginproxy.gov.bc.ca' }}/auth/realms/standard"
           - name: frontend
             file: frontend/openshift.deploy.yml
             parameters: -p IMAGE_TAG="${{ inputs.tag }}"

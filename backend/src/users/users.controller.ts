@@ -14,7 +14,11 @@ import { UsersService } from './users.service'
 import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
 import { UserDto } from './dto/user.dto'
+import { Public } from '../common/decorators/public.decorator'
 
+// The template's sample, kept public so the sample frontend still works. It goes when the
+// CHOSEN model replaces it; don't copy this onto real routes.
+@Public()
 @ApiTags('users')
 @Controller({ path: 'users', version: '1' })
 export class UsersController {

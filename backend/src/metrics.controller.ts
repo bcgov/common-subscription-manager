@@ -1,7 +1,9 @@
 import { Controller, Get, Res } from '@nestjs/common'
 import type { Response } from 'express'
 import { register } from './middleware/prom'
+import { Public } from './common/decorators/public.decorator'
 
+@Public()
 @Controller('metrics')
 export class MetricsController {
   @Get()

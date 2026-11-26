@@ -9,16 +9,22 @@ import { AppController } from './app.controller'
 import { MetricsController } from './metrics.controller'
 import { TerminusModule } from '@nestjs/terminus'
 import { HealthController } from './health.controller'
+import { APP_GUARD } from '@nestjs/core'
+import { ExplicitAuthGuard } from './common/guards/explicit-auth.guard'
+import { AuthModule } from './auth/auth.module'
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ ignoreEnvFile: true }),
+    ConfigModule.forRoot({ ignoreEnvFile: true, isGlobal: true }),
     TerminusModule,
     DatabaseModule,
     UsersModule,
+    AuthModule,
   ],
   controllers: [AppController, MetricsController, HealthController],
-  providers: [AppService],
+  // Registered here rather than in bootstrap() so every app built from AppModule, tests
+  // included, fails closed the same way.
+  providers: [AppService, { provide: APP_GUARD, useClass: ExplicitAuthGuard }],
 })
 export class AppModule {
   // let's add a middleware on all routes

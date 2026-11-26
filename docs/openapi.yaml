@@ -13,11 +13,15 @@ info:
     | A tenant's backend (e.g. a line-of-business app) | `tenantAuth` | Topics, subscriptions, contacts, suppressions, history |
     | Notify | `notifyAuth`; webhooks also need `webhookSignature` | Recipient lookup, inbound SMS, delivery events |
     | The public, through links CHOSEN sends | A token in the path | Confirm, unsubscribe, manage subscriptions |
-    | CHOSEN operators | `adminAuth` | Tenants |
+    | Tenant staff, in CHOSEN's UI | `tenantUserAuth` | The tenant's client credentials |
+    | CHOSEN operators | `adminAuth` | Tenants, Notify's client credentials |
 
-    Every caller except the public reaches CHOSEN through the Kong API gateway. Kong checks the
-    API key and applies rate limits, then CHOSEN maps the credential to a tenant, or to Notify.
-    Public links are served from a separate, rate-limited hostname.
+    Services authenticate with OAuth2 client credentials that their tenant creates in CHOSEN
+    (`/credentials`). CHOSEN has the API Services Portal issue them and links each client ID to
+    the tenant. Every caller except the public reaches CHOSEN through the Kong API gateway, which
+    checks the token and applies rate limits. CHOSEN then checks the token again and finds the
+    tenant, or Notify, from its client ID (`azp`). Public links are served from a separate,
+    rate-limited hostname.
 
     **Conventions**
 
@@ -54,6 +58,8 @@ tags:
     description: Webhooks from Notify for inbound SMS and delivery events.
   - name: Public
     description: Called by CHOSEN's hosted pages and by mail clients. Authorised by the token in the link.
+  - name: Credentials
+    description: Client credentials a tenant's services use to call CHOSEN. Managed by tenant staff in CHOSEN's UI.
   - name: Admin
     description: CHOSEN operators.
 
@@ -1008,6 +1014,123 @@ paths:
         '404': { $ref: '#/components/responses/InvalidToken' }
         '410': { $ref: '#/components/responses/ExpiredToken' }
 
+  # ------------------------------------------------------------ Credentials
+  /credentials:
+    get:
+      tags: [Credentials]
+      operationId: listCredentials
+      summary: List the tenant's client credentials
+      description: Includes revoked credentials, newest first. Secrets are never returned here.
+      security:
+        - tenantUserAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - name: includeRevoked
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: The tenant's credentials.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ApiClient' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Credentials]
+      operationId: issueCredential
+      summary: Create client credentials for the tenant
+      description: |
+        CHOSEN has the API Services Portal issue a consumer for CHOSEN's gateway, then links its
+        client ID to the tenant. **The client secret is in this response only.** CHOSEN doesn't
+        store it; if it's lost, rotate the credentials.
+
+        Requires the `CHOSEN_OPERATIONS_ADMIN` role for the tenant.
+      security:
+        - tenantUserAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApiClientCreate' }
+      responses:
+        '201':
+          description: The credentials, including the secret.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IssuedApiClient' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '502': { $ref: '#/components/responses/CredentialIssuerFailed' }
+
+  /credentials/{clientId}/rotate:
+    parameters:
+      - $ref: '#/components/parameters/ClientId'
+    post:
+      tags: [Credentials]
+      operationId: rotateCredential
+      summary: Replace the client secret
+      description: |
+        The API Services Portal issues a new secret for the same client ID; the old secret stops
+        working. Tokens already issued with the old secret keep working until they expire, within
+        minutes. **The new secret is in this response only.**
+
+        Requires the `CHOSEN_OPERATIONS_ADMIN` role for the tenant.
+      security:
+        - tenantUserAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+      responses:
+        '200':
+          description: The credentials, including the new secret.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IssuedApiClient' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/CredentialRevoked' }
+        '502': { $ref: '#/components/responses/CredentialIssuerFailed' }
+
+  /credentials/{clientId}/revoke:
+    parameters:
+      - $ref: '#/components/parameters/ClientId'
+    post:
+      tags: [Credentials]
+      operationId: revokeCredential
+      summary: Stop the credentials from calling CHOSEN
+      description: |
+        Takes effect immediately: CHOSEN refuses tokens for this client ID from now on, even ones
+        that haven't expired. It can't be undone; create new credentials instead.
+
+        The API Services Portal can't delete the consumer through its API yet, so it stays listed
+        on the portal's Consumers page until removed there by hand.
+
+        Requires the `CHOSEN_OPERATIONS_ADMIN` role for the tenant.
+      security:
+        - tenantUserAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+      responses:
+        '200':
+          description: The revoked credentials.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiClient' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/CredentialRevoked' }
+
   # ------------------------------------------------------------------ Admin
   /admin/tenants:
     get:
@@ -1098,23 +1221,133 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /admin/system-credentials:
+    get:
+      tags: [Admin]
+      operationId: listSystemCredentials
+      summary: List client credentials for systems, such as Notify
+      security:
+        - adminAuth: []
+      parameters:
+        - name: includeRevoked
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: The system credentials.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ApiClient' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Admin]
+      operationId: issueSystemCredential
+      summary: Create client credentials for a system, such as Notify
+      description: |
+        Like `issueCredential`, but the credentials belong to a system role instead of a tenant.
+        A `NOTIFY` client can call the recipient and inbound endpoints for any tenant.
+        **The client secret is in this response only.**
+      security:
+        - adminAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SystemApiClientCreate' }
+      responses:
+        '201':
+          description: The credentials, including the secret.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IssuedApiClient' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '502': { $ref: '#/components/responses/CredentialIssuerFailed' }
+
+  /admin/system-credentials/{clientId}/rotate:
+    parameters:
+      - $ref: '#/components/parameters/ClientId'
+    post:
+      tags: [Admin]
+      operationId: rotateSystemCredential
+      summary: Replace a system client's secret
+      description: Same as `rotateCredential`, for a system client. **The new secret is in this response only.**
+      security:
+        - adminAuth: []
+      responses:
+        '200':
+          description: The credentials, including the new secret.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IssuedApiClient' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/CredentialRevoked' }
+        '502': { $ref: '#/components/responses/CredentialIssuerFailed' }
+
+  /admin/system-credentials/{clientId}/revoke:
+    parameters:
+      - $ref: '#/components/parameters/ClientId'
+    post:
+      tags: [Admin]
+      operationId: revokeSystemCredential
+      summary: Stop a system client from calling CHOSEN
+      description: Same as `revokeCredential`, for a system client. Takes effect immediately.
+      security:
+        - adminAuth: []
+      responses:
+        '200':
+          description: The revoked credentials.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiClient' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/CredentialRevoked' }
+
 components:
   securitySchemes:
     tenantAuth:
-      type: apiKey
-      in: header
-      name: X-API-KEY
+      type: oauth2
       description: |
-        A tenant's API key, issued through the API Services Portal the same way as for
-        Notify's API. Kong checks it; CHOSEN maps the credential to a tenant, and every call is
-        limited to that tenant's data.
+        A token for one of the tenant's client credentials, created in CHOSEN (`/credentials`).
+        Kong and CHOSEN both check it; CHOSEN finds the tenant from the client ID (`azp`), and
+        every call is limited to that tenant's data.
+
+        The token URL is BC Gov SSO's `apigw` realm. It's shown here for PROD; DEV and TEST
+        use the `dev.` and `test.` hostnames. The issue response gives the right one.
+      flows:
+        clientCredentials:
+          tokenUrl: https://loginproxy.gov.bc.ca/auth/realms/apigw/protocol/openid-connect/token
+          scopes: {}
     notifyAuth:
-      type: apiKey
-      in: header
-      name: X-API-KEY
+      type: oauth2
       description: |
-        Notify's own API key, separate from every tenant's. It may query recipients for any
+        A token for Notify's own client credentials, which belong to the `NOTIFY` system role
+        instead of a tenant (`/admin/system-credentials`). It may query recipients for any
         tenant, and the tenant is named in the request.
+      flows:
+        clientCredentials:
+          tokenUrl: https://loginproxy.gov.bc.ca/auth/realms/apigw/protocol/openid-connect/token
+          scopes: {}
+    tenantUserAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        An IDIR user signed in to CHOSEN's UI, with BC Gov SSO's `standard` realm. The tenant is
+        chosen with the `X-Tenant-Id` header, and the user must belong to it in CSTAR. Roles are
+        the user's CSTAR roles for that tenant.
     webhookSignature:
       type: apiKey
       in: header
@@ -1127,9 +1360,23 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Keycloak access token for a CHOSEN operator.
+      description: |
+        An IDIR user signed in to CHOSEN's UI, with BC Gov SSO's `standard` realm, who has the
+        `CHOSEN_ADMIN` role.
 
   parameters:
+    TenantHeader:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      description: The CSTAR tenant ID the signed-in user is acting for.
+      schema: { type: string }
+    ClientId:
+      name: clientId
+      in: path
+      required: true
+      description: The client ID the API Services Portal issued.
+      schema: { type: string, maxLength: 200 }
     TopicKey:
       name: topicKey
       in: path
@@ -1169,6 +1416,21 @@ components:
           schema: { $ref: '#/components/schemas/Problem' }
     Unauthorized:
       description: Missing or invalid credentials.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Signed in, but without the role this needs, or not a member of the tenant.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    CredentialRevoked:
+      description: The credentials have been revoked.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    CredentialIssuerFailed:
+      description: The API Services Portal couldn't issue or rotate the credentials. Nothing was saved; try again later.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
@@ -1699,6 +1961,60 @@ components:
               filterFields:
                 type: array
                 items: { $ref: '#/components/schemas/FilterField' }
+
+    # ------------------------------------------------------- Credentials
+    ApiClient:
+      type: object
+      required: [clientId, label, issuedAt, issuedBy]
+      properties:
+        clientId:
+          type: string
+          description: |
+            Issued by the API Services Portal as `<environment appId>-<application appId>`.
+            Tokens carry it as `azp`.
+          examples: [D5C97345-4B7E21C09A6]
+        label:
+          type: string
+          examples: [Road closures app (PROD)]
+        systemRole:
+          type: [string, 'null']
+          enum: [NOTIFY, null]
+          description: Set only on system credentials; tenant credentials have `null`.
+        issuedBy: { type: string, description: Who created the credentials. }
+        issuedAt: { type: string, format: date-time }
+        rotatedAt: { type: [string, 'null'], format: date-time }
+        revokedBy: { type: [string, 'null'] }
+        revokedAt: { type: [string, 'null'], format: date-time }
+    IssuedApiClient:
+      description: Returned only when credentials are created or rotated.
+      allOf:
+        - $ref: '#/components/schemas/ApiClient'
+        - type: object
+          required: [clientSecret, tokenUrl]
+          properties:
+            clientSecret:
+              type: string
+              description: Shown once. CHOSEN doesn't store it and can't show it again.
+            tokenUrl:
+              type: string
+              format: uri
+              description: Where the service exchanges its client ID and secret for a token.
+              examples: [https://loginproxy.gov.bc.ca/auth/realms/apigw/protocol/openid-connect/token]
+    ApiClientCreate:
+      type: object
+      required: [label]
+      properties:
+        label:
+          type: string
+          maxLength: 100
+          description: Tells the tenant's credentials apart, e.g. by app and environment.
+          examples: [Road closures app (PROD)]
+    SystemApiClientCreate:
+      type: object
+      required: [systemRole, label]
+      properties:
+        systemRole: { type: string, enum: [NOTIFY] }
+        label: { type: string, maxLength: 100, examples: [Notify PROD] }
 
     # ------------------------------------------------------------- Admin
     Tenant:

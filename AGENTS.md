@@ -80,7 +80,9 @@ CHOSEN's whole purpose is holding citizens' contact details, so these rules appl
 - **[docs/openapi.yaml](docs/openapi.yaml) is the contract.** Implement against it, and change it in the same PR as any behaviour change. Swagger decorators in the code must describe the same contract.
 - **Every endpoint is exposed.** Tenant apps, Notify, mail clients and the public all call CHOSEN from outside this repo, so a renamed field, a tightened validation rule or a changed status code breaks someone. Prefer additive changes, and never repurpose an existing field.
 - **Request bodies are DTO classes with class-validator decorators**, validated by a global `ValidationPipe` with `whitelist` and `forbidNonWhitelisted`, so an undeclared property is a `400`. This isn't wired up yet; add it with the first real endpoint.
-- **No endpoint is unprotected by omission.** Adopt Notify's pattern: a global guard that rejects any route that is neither `@Public()` nor explicitly guarded. Only `/public/*`, health and metrics are public.
+- **No endpoint is unprotected by omission.** `ExplicitAuthGuard` (`src/common/guards/`) is registered globally as `APP_GUARD` and rejects, with `401`, any route that is neither `@Public()` nor guarded by at least one guard marked `@AuthenticatesCaller()` (`src/common/decorators/authenticates-caller.decorator.ts`). It checks nothing about the caller; the route's own guards do that. Mark a guard `@AuthenticatesCaller()` only if it verifies a token, API key or signature and rejects when it can't. A feature-flag guard or a rate-limit guard on its own leaves the route rejected. Only `/public/*`, health, metrics and the root are public. The template's `users` sample is also marked `@Public()` until it's removed.
+- **Roles** are declared with `@Roles()` (`src/common/decorators/roles.decorator.ts`), as in Notify: `SsoRole` for Keycloak client roles that aren't tied to a tenant, and `CstarRole` for a user's roles in one tenant. `@Roles()` only records metadata, so it must sit beside a `@UseGuards()` guard that enforces it.
+- **`ChosenAdminGuard`** enforces SSO roles for CHOSEN-wide routes, such as `/admin/*`. It verifies the BC Gov SSO token (`KeycloakJwtStrategy` in `src/auth/`: signature, expiry, `KEYCLOAK_ISSUER`, `KEYCLOAK_CLIENT_ID`), checks `azp`, then requires one of the `SsoRole`s in `@Roles()`. A route using it with no `SsoRole` refuses everyone. The tenant-scoped guard, which checks CSTAR membership and `CstarRole`s, isn't built yet.
 - **Public endpoints:** a `GET` never changes state, because mail scanners open links. Responses must not reveal whether an address is subscribed.
 - **Errors** use `application/problem+json` (RFC 9457) with messages that say what went wrong and how to fix it.
 - **Document each operation properly:** summary and description, every response status including failures, a realistic example on every property (never `"string"`), and what the endpoint does not do. Keep internals (role names, table names) out of the published spec.
@@ -88,13 +90,15 @@ CHOSEN's whole purpose is holding citizens' contact details, so these rules appl
 ### Integration and auth
 
 The README's "Integration and authentication" section explains the design. These are the rules the code must follow:
-- **Tenant apps and Notify call through Kong**, using API keys from the API Services Portal. Kong checks the key, then forwards the credential identity; CHOSEN maps that identity to a tenant, or to Notify. Never take a tenant ID from the request body or a query parameter for tenant endpoints.
-- **Notify has its own credential.** It is the only caller allowed to name a tenant in a request (`/recipients/query`). A tenant key must never reach Notify-only endpoints, and Notify's key must never reach tenant endpoints.
-- **Webhooks (`/inbound/*`) need both** the Notify credential and a valid HMAC signature over the raw body. Compare signatures in constant time, and reject the request before parsing the body if the signature is wrong.
-- **Trust Kong's identity headers only because nothing else can reach the backend.** The network policy admits only Kong and the public-links route. Don't loosen it, and don't add another way to reach the backend.
-- **`/public/*` takes no API key.** The signed token in the link is the permission, and the route is rate-limited.
-- **CHOSEN calls Notify as an ordinary Notify client**, with its own Notify API key held in a secret.
-- **Operators** sign in with Keycloak (`adminAuth`). In the MVP, mapping keys to tenants is an admin API task.
+- **Services authenticate with OAuth2 client credentials, through Kong.** Tokens come from SSO's `apigw` realm. Kong checks them (`jwt-keycloak`), and **the backend checks them again**: signature, expiry, issuer and audience. Then it looks up the token's `azp` in `api_client`, ignoring revoked rows. An unknown or revoked client ID is `401`, even though Kong let it through.
+- **The tenant comes from the `api_client` row, never from the request.** Don't read a tenant ID from the body, query or headers for tenant endpoints. Tenant staff in the UI are the exception: they pick a tenant with `X-Tenant-Id`, and their CSTAR membership of it is checked.
+- **Notify is a system client** (`system_role = NOTIFY`). It's the only caller allowed to name a tenant in a request (`/recipients/query`). Tenant clients must never reach Notify-only endpoints, and Notify's client must never reach tenant endpoints.
+- **Client secrets are never stored, logged or returned twice.** They come back from the API Services Portal and go straight into the issue or rotate response. Revoking is immediate in CHOSEN; removing the consumer in the portal is manual until APS adds a delete API.
+- **Webhooks (`/inbound/*`) need both** Notify's token and a valid HMAC signature over the raw body. Compare signatures in constant time, and reject the request before parsing the body if the signature is wrong.
+- **Only Kong and the public-links route can reach the backend.** The network policy admits nothing else. Don't loosen it, and don't add another way in.
+- **`/public/*` takes no credentials.** The signed token in the link is the permission, and the route is rate-limited.
+- **CHOSEN calls Notify as an ordinary Notify client**, with its own Notify credential held in a secret.
+- **People sign in with IDIR** through SSO's `standard` realm (`chosen-6820`). Operators need the `CHOSEN_ADMIN` SSO role (`adminAuth`). Tenant staff need a CSTAR role for the tenant (`tenantUserAuth`); managing credentials needs `CHOSEN_OPERATIONS_ADMIN`.
 
 ### Impact on existing callers: always state it
 

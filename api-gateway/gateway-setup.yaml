@@ -1,0 +1,60 @@
+# One-off API Services Portal resources for CHOSEN's gateway (gw-a88e8).
+#
+# These change rarely and need wider permissions than CI has, so a gateway owner applies
+# them by hand, logged in with IDIR:
+#
+#   gwa login
+#   gwa config set gateway gw-a88e8
+#   gwa apply -i api-gateway/gateway-setup.yaml
+#
+# Kong routes and plugins are separate: they're generated per environment and published by
+# CI once the OpenShift namespaces exist.
+---
+# The authorization profile. Credentials issued for CHOSEN use the OAuth2 client-credentials
+# flow, and their tokens come from the Gold shared IdP (SSO's apigw realm). `mode: auto`
+# means credentials are approved as soon as they're issued: tenants create them inside
+# CHOSEN, which already checks the user's CSTAR role, so a second approval in the portal
+# would only get in the way.
+#
+# The name is the one `gwa generate-config` gives. Keep it: the token audience the template
+# expects, ap-gw-a88e8-default-<env>, looks like it comes from it, and the backend and Kong
+# both check that audience.
+kind: CredentialIssuer
+name: gw-a88e8 default
+description: Client credentials for services calling the CHOSEN API, issued through CHOSEN.
+flow: client-credentials
+mode: auto
+authPlugin: jwt-keycloak
+clientAuthenticator: client-secret
+clientRoles: []
+inheritFrom: Gold Shared IdP
+---
+# The API's listing in the API Services Portal directory. `view_audience: Government` keeps
+# it visible only to government users; CHOSEN's callers are government services.
+kind: DraftDataset
+name: chosen-dataset
+title: CHOSEN API
+organization: ministry-of-citizens-services
+organizationUnit: devops-and-cloud-services
+notes: |
+  CHOSEN (Common Hosted Subscription for Event Notifications) manages subscriptions,
+  consent and opt-outs for government notifications sent through Notify. Services create
+  their client credentials inside CHOSEN, not through the portal.
+tags: [chosen, notify, subscriptions, openapi]
+license_title: Access Only
+view_audience: Government
+security_class: PUBLIC
+record_publish_date: '2026-11-26'
+---
+# The product callers get credentials for. Only dev for now; test and prod are added when
+# their namespaces exist. It stays inactive, with no services, until routes are published.
+kind: Product
+name: CHOSEN API
+dataset: chosen-dataset
+environments:
+  - name: dev
+    active: false
+    approval: false
+    flow: client-credentials
+    credentialIssuer: gw-a88e8 default
+    services: []

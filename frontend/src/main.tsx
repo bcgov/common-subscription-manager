@@ -2,6 +2,8 @@ import '@bcgov/bc-sans/css/BC_Sans.css'
 import { StrictMode } from 'react'
 import * as ReactDOM from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
+import { Provider as ReduxProvider } from 'react-redux'
+import { store } from '@/redux/store'
 
 // Import bootstrap styles
 import '@/scss/styles.scss'
@@ -21,6 +23,8 @@ declare module '@tanstack/react-router' {
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <ReduxProvider store={store}>
+      <RouterProvider router={router} />
+    </ReduxProvider>
   </StrictMode>,
 )

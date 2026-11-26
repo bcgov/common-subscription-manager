@@ -26,6 +26,7 @@ This is the first draft of the Common Hosted Subscription for Event Notification
 | 12 | An email spam complaint suppresses the address only for the tenant whose email was reported. A hard bounce suppresses it for every tenant. |
 | 13 | Topic keywords are unique across CHOSEN. |
 | 14 | Personal data is encrypted in the application before it reaches the database, with a keyed hash alongside for lookups. See [Encryption](#encryption). |
+| 15 | Services authenticate with **OAuth2 client credentials**, which tenants create inside CHOSEN. CHOSEN has the API Services Portal issue them and links each client ID to a tenant, or to Notify. Secrets are never stored. |
 
 ## Diagram
 
@@ -33,6 +34,7 @@ This is the first draft of the Common Hosted Subscription for Event Notification
 erDiagram
     tenant ||--o{ topic : owns
     tenant ||--o{ contact : owns
+    tenant ||--o{ api_client : "calls as"
     topic ||--o{ topic_channel : "offered on"
     topic ||--o{ filter_field : declares
     topic ||--o{ subscription : has
@@ -49,6 +51,19 @@ erDiagram
         varchar name
         varchar slug UK
         varchar status FK
+    }
+    api_client {
+        uuid id PK
+        varchar client_id UK "from the API Services Portal"
+        uuid tenant_id FK "empty for a system client"
+        varchar system_role FK "e.g. NOTIFY; empty for a tenant client"
+        varchar label
+        varchar flow "as reported by the portal"
+        varchar issued_by
+        timestamptz issued_at
+        timestamptz rotated_at
+        varchar revoked_by
+        timestamptz revoked_at
     }
     topic {
         uuid id PK
@@ -164,7 +179,16 @@ erDiagram
 
 ### Tenants and topics
 
-**`tenant`**: a service that uses CHOSEN. `external_id` holds the CSTAR tenant ID, the same one Notify uses, so the two systems agree on who a tenant is. Every API call authenticates as a tenant and sees only its own data.
+**`tenant`**: a service that uses CHOSEN. `external_id` holds the CSTAR tenant ID, the same one Notify uses, so the two systems agree on who a tenant is. A tenant's services call as one of its `api_client` rows and see only its own data.
+
+**`api_client`**: a set of client credentials that may call CHOSEN's API, and who it calls as.
+- **Issued inside CHOSEN.** A tenant admin, or an operator for a system client, asks CHOSEN for credentials. CHOSEN has the API Services Portal issue them for CHOSEN's gateway, then saves a row here. The response carries the client secret once; **it is never stored**.
+- **Exactly one of `tenant_id` and `system_role` is set.** A tenant client sees only that tenant's data. A system client, so far only `NOTIFY`, can call the Notify-only endpoints and name a tenant in the request.
+- **Finding the caller:** every request's token carries the client ID as `azp`. CHOSEN looks it up here, among rows where `revoked_at` is empty. An unknown or revoked client ID is refused, even if Kong accepted the token.
+- **Rotating** gets a new secret from the portal for the same client ID and sets `rotated_at`. Nothing else changes.
+- **Revoking** sets `revoked_at` and `revoked_by`, which takes effect immediately. Rows are never deleted, so the audit trail keeps who could call as whom. The portal's API can't delete the consumer yet, so that's a manual step.
+- A tenant can have several clients, such as one for each app or environment; `label` tells them apart.
+- Issuing, rotating and revoking are recorded in `audit_event`.
 
 **`topic`**: something a person can subscribe to, such as road-closure alerts. Its `key` is what apps and Notify pass to the API, and it's unique within a tenant.
 - `pending_expiry_minutes`: how long an unconfirmed subscription waits before it becomes `EXPIRED`, on any channel that requires confirmation.
@@ -234,7 +258,7 @@ erDiagram
 
 ### Lookup tables
 
-`channel_code`, `tenant_status_code`, `topic_status_code`, `subscription_status_code`, `filter_data_type_code`, `filter_match_type_code`, `suppression_reason_code`, `consent_action_code`, `consent_method_code`, `token_purpose_code`.
+`channel_code`, `api_client_system_role_code`, `tenant_status_code`, `topic_status_code`, `subscription_status_code`, `filter_data_type_code`, `filter_match_type_code`, `suppression_reason_code`, `consent_action_code`, `consent_method_code`, `token_purpose_code`.
 
 ## How `get_recipients` uses this
 

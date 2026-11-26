@@ -37,6 +37,12 @@ parameters:
   - name: LOG_LEVEL
     description: Application log level (debug|info|warn|error)
     value: "info"
+  - name: KEYCLOAK_ISSUER
+    description: BC Gov SSO realm that issues user tokens. Differs per environment (dev., test. or no prefix for PROD).
+    required: true
+  - name: KEYCLOAK_CLIENT_ID
+    description: CHOSEN's SSO client ID, the same in every environment.
+    value: chosen-6820
 objects:
   - apiVersion: apps/v1
     kind: Deployment
@@ -154,6 +160,10 @@ objects:
               env:
                 - name: LOG_LEVEL
                   value: ${LOG_LEVEL}
+                - name: KEYCLOAK_ISSUER
+                  value: ${KEYCLOAK_ISSUER}
+                - name: KEYCLOAK_CLIENT_ID
+                  value: ${KEYCLOAK_CLIENT_ID}
                 - name: POSTGRES_HOST
                   value: ${NAME}-${ZONE}-database
                 - name: POSTGRES_PORT

@@ -18,6 +18,11 @@ export default defineConfig({
     exclude: ["**/node_modules/**"],
     globals: true,
     environment: "node",
+    // The app won't start without these. Tests never contact this issuer.
+    env: {
+      KEYCLOAK_ISSUER: "https://sso.example.test/auth/realms/standard",
+      KEYCLOAK_CLIENT_ID: "chosen-test",
+    },
     coverage: {
       provider: "v8",
       reporter: ["lcov", "text-summary", "text", "json", "html"],

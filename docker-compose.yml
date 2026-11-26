@@ -56,6 +56,8 @@ services:
     environment:
       <<: *postgres-vars
       NODE_ENV: development
+      KEYCLOAK_ISSUER: https://dev.loginproxy.gov.bc.ca/auth/realms/standard
+      KEYCLOAK_CLIENT_ID: chosen-6820
     image: *node-image
     ports: ["3001:3000"]
     healthcheck:
