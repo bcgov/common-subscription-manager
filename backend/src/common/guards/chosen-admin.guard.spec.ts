@@ -17,11 +17,13 @@ const CLIENT_ID = 'chosen-test'
 
 // Stands in for Keycloak's published keys. Everything else (Passport, signature, expiry,
 // issuer and audience checks) is the real code path.
-const jwks = vi.hoisted(() => ({ publicKey: '' }))
+const jwks = vi.hoisted(() => ({ publicKey: '', requestedUris: [] as string[] }))
 vi.mock('jwks-rsa', () => ({
-  passportJwtSecret:
-    () => (_req: unknown, _rawJwt: unknown, done: (err: unknown, key?: string) => void) =>
-      done(null, jwks.publicKey),
+  passportJwtSecret: (options: { jwksUri: string }) => {
+    jwks.requestedUris.push(options.jwksUri)
+    return (_req: unknown, _rawJwt: unknown, done: (err: unknown, key?: string) => void) =>
+      done(null, jwks.publicKey)
+  },
 }))
 
 const realmKeys = generateKeyPairSync('rsa', { modulusLength: 2048 })
@@ -92,6 +94,10 @@ describe('ChosenAdminGuard', () => {
     const req = request(app.getHttpServer()).get(path)
     return token ? req.set('Authorization', `Bearer ${token}`) : req
   }
+
+  it("fetches the realm's keys from the issuer's certs URL", () => {
+    expect(jwks.requestedUris).toEqual([`${ISSUER}/protocol/openid-connect/certs`])
+  })
 
   it('lets through a valid token with the required role', async () => {
     await get('/admin', signToken()).expect(200).expect('ok')

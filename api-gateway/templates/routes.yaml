@@ -1,0 +1,148 @@
+# Kong routes and plugins for CHOSEN, in the format `gwa publish-gateway` takes: services,
+# with their routes nested, and each plugin nested under the route it applies to.
+#
+# Values in ${...} come from config/<environment>.env, filled in by scripts/generate-routes.mjs.
+# The generated files are build output; edit this template and the env files instead.
+#
+# Every route keeps strip_path: false, because the backend expects the full /api/v1/... path.
+# PR environments add a /pr-<number> prefix, which a pre-function plugin removes before the
+# request reaches the backend.
+#
+# Kong is the only way to the backend, for services and for CHOSEN's own UI: the browser calls
+# the API at the gateway's URL, so the UI and public routes answer CORS for the frontend.
+#
+# Kong is the first check, not the only one: the backend verifies every token again.
+
+x-service-token: &serviceToken
+  name: jwt-keycloak
+  tags: [${CONFIG_TAG}]
+  enabled: true
+  config:
+    allowed_iss: [${SERVICE_TOKEN_ISSUER}]
+    allowed_aud: ${SERVICE_TOKEN_AUDIENCE}
+    run_on_preflight: true
+    iss_key_grace_period: 10
+    maximum_expiration: 0
+    algorithm: RS256
+    claims_to_verify: [exp]
+    uri_param_names: []
+    cookie_names: []
+    consumer_match: true
+    consumer_match_claim: azp
+    consumer_match_claim_custom_id: true
+    # Credentials are issued through CHOSEN, which links them to tenants itself. A token
+    # whose client has no Kong consumer is still let through to the backend to decide.
+    consumer_match_ignore_not_found: true
+
+x-user-token: &userToken
+  name: jwt-keycloak
+  tags: [${CONFIG_TAG}]
+  enabled: true
+  config:
+    allowed_iss: [${USER_TOKEN_ISSUER}]
+    allowed_aud: ${USER_TOKEN_AUDIENCE}
+    # Browsers send CORS preflights without a token; the cors plugin answers them.
+    run_on_preflight: false
+    iss_key_grace_period: 10
+    maximum_expiration: 0
+    algorithm: RS256
+    claims_to_verify: [exp]
+    uri_param_names: []
+    cookie_names: []
+    consumer_match: false
+
+# Lets CHOSEN's frontend, and only it, call these routes from the browser.
+x-frontend-cors: &frontendCors
+  name: cors
+  tags: [${CONFIG_TAG}]
+  enabled: true
+  config:
+    origins: [${FRONTEND_ORIGINS}]
+    methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+    headers: [Authorization, Content-Type, X-Tenant-Id]
+    credentials: false
+    max_age: 3600
+    preflight_continue: false
+
+# Per caller: limits each client ID separately, counted across all Kong pods.
+x-service-rate-limit: &serviceRateLimit
+  name: rate-limiting
+  tags: [${CONFIG_TAG}]
+  enabled: true
+  config:
+    limit_by: credential
+    policy: ${RATE_LIMIT_POLICY}
+    fault_tolerant: true
+    hide_client_headers: false
+    minute: ${SERVICE_RATE_LIMIT_PER_MINUTE}
+
+# Public links: no credentials, so limit by client IP instead.
+x-public-rate-limit: &publicRateLimit
+  name: rate-limiting
+  tags: [${CONFIG_TAG}]
+  enabled: true
+  config:
+    limit_by: ip
+    policy: ${RATE_LIMIT_POLICY}
+    fault_tolerant: true
+    hide_client_headers: false
+    minute: ${PUBLIC_RATE_LIMIT_PER_MINUTE}
+
+x-route: &route
+  tags: [${CONFIG_TAG}]
+  hosts: [${GATEWAY_HOSTNAME}]
+  strip_path: false
+  https_redirect_status_code: 426
+  path_handling: v0
+  request_buffering: true
+  response_buffering: true
+
+services:
+  - name: ${SERVICE_NAME}
+    tags: [${CONFIG_TAG}]
+    host: ${BACKEND_HOST}
+    port: ${BACKEND_PORT}
+    protocol: http
+    retries: 0
+    routes:
+      # Services calling with client credentials (tenant apps and Notify).
+      - <<: *route
+        name: ${ROUTE_PREFIX}service-api
+        paths:
+          - ${PATH_PREFIX}/api/v1/topics
+          - ${PATH_PREFIX}/api/v1/subscriptions
+          - ${PATH_PREFIX}/api/v1/contacts
+          - ${PATH_PREFIX}/api/v1/suppressions
+          - ${PATH_PREFIX}/api/v1/audit-events
+          - ${PATH_PREFIX}/api/v1/recipients
+          - ${PATH_PREFIX}/api/v1/inbound
+        plugins:
+          - *serviceToken
+          - *serviceRateLimit
+
+      # People signed in to CHOSEN's UI: tenant staff and operators.
+      - <<: *route
+        name: ${ROUTE_PREFIX}user-api
+        paths:
+          - ${PATH_PREFIX}/api/v1/credentials
+          - ${PATH_PREFIX}/api/v1/admin
+        plugins:
+          - *frontendCors
+          - *userToken
+
+      # Links in emails and texts, and mail clients' one-click unsubscribe.
+      - <<: *route
+        name: ${ROUTE_PREFIX}public
+        paths:
+          - ${PATH_PREFIX}/api/v1/public
+        plugins:
+          - *frontendCors
+          - *publicRateLimit
+
+      # Health and the API docs.
+      - <<: *route
+        name: ${ROUTE_PREFIX}health-and-docs
+        methods: [GET]
+        paths:
+          - ${PATH_PREFIX}/api/health
+          - ${PATH_PREFIX}/api/docs

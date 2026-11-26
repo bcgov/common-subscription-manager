@@ -3,7 +3,6 @@ import { Module, RequestMethod } from '@nestjs/common'
 import { HTTPLoggerMiddleware } from './middleware/req.res.logger'
 import { DatabaseModule } from './database.module'
 import { ConfigModule } from '@nestjs/config'
-import { UsersModule } from './users/users.module'
 import { AppService } from './app.service'
 import { AppController } from './app.controller'
 import { MetricsController } from './metrics.controller'
@@ -18,7 +17,6 @@ import { AuthModule } from './auth/auth.module'
     ConfigModule.forRoot({ ignoreEnvFile: true, isGlobal: true }),
     TerminusModule,
     DatabaseModule,
-    UsersModule,
     AuthModule,
   ],
   controllers: [AppController, MetricsController, HealthController],

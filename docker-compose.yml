@@ -1,3 +1,10 @@
+# CHOSEN's local stack. It runs alongside Notify's, so every container is named chosen-* and
+# every host port is in CHOSEN's own range:
+#   4000 frontend   4002 APS mock   4003 CSTAR mock   4005 caddy
+#   (the backend has no host port: reach it through Kong, as when deployed)
+#   4800 Kong       4880 Keycloak  5433 Postgres
+name: chosen
+
 # Reusable vars
 x-var:
   - &POSTGRES_USER postgres
@@ -15,16 +22,16 @@ x-postgres-vars: &postgres-vars
 services:
   database:
     image: postgis/postgis:17-3.4 # if using crunchy , make sure to align with crunchy version, currently it is at 16 and postgis 3.3
-    container_name: database
+    container_name: chosen-database
     environment:
       <<: *postgres-vars
     healthcheck:
       test: ["CMD", "pg_isready", "-U", *POSTGRES_USER]
-    ports: ["5432:5432"]
+    ports: ["5433:5432"]
 
   migrations:
     image: flyway/flyway:13-alpine
-    container_name: migrations
+    container_name: chosen-migrations
     command: info migrate info
     volumes: ["./migrations/sql:/flyway/sql:ro"]
     environment:
@@ -32,7 +39,7 @@ services:
       FLYWAY_USER: *POSTGRES_USER
       FLYWAY_PASSWORD: *POSTGRES_PASSWORD
       FLYWAY_BASELINE_ON_MIGRATE: true
-      FLYWAY_DEFAULT_SCHEMA: users
+      FLYWAY_DEFAULT_SCHEMA: chosen
     depends_on:
       database:
         condition: service_healthy
@@ -40,19 +47,20 @@ services:
   schemaspy:
     image: schemaspy/schemaspy:7.0.2
     profiles: ["schemaspy"]
-    container_name: schemaspy
-    command: -t pgsql11 -db postgres -host database -port 5432 -u postgres -p default -schemas users
+    container_name: chosen-schemaspy
+    command: -t pgsql11 -db postgres -host database -port 5432 -u postgres -p default -schemas chosen
     depends_on:
       migrations:
         condition: service_completed_successfully
     volumes: ["./output:/output"]
 
   backend:
-    container_name: backend
+    container_name: chosen-backend
     depends_on:
       migrations:
         condition: service_started
-    entrypoint: sh -c "npm i && npm run start:dev"
+    # npm ci, not npm i: it installs exactly the lockfile and never rewrites it on your disk.
+    entrypoint: sh -c "npm ci --ignore-scripts --no-audit --no-fund && npm run start:dev"
     # The backend's own settings come from .env (copy .env.example to start). Only the
     # wiring between these containers stays here; values here override .env.
     env_file: [.env]
@@ -60,39 +68,132 @@ services:
       <<: *postgres-vars
       NODE_ENV: development
     image: *node-image
-    ports: ["3001:3000"]
+    # No host port: as when deployed, the only way to the backend is through Kong (:4800).
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api"]
     working_dir: "/app"
     volumes: ["./backend:/app", "/app/node_modules"]
 
+  # Stands in for BC Gov SSO: the standard realm (people signing in) and the apigw realm
+  # (services' client credentials). Admin console: http://localhost:4880, admin / admin.
+  # Tokens always name http://localhost:4880 as their issuer, the address a browser uses.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    container_name: chosen-keycloak
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://localhost:4880
+      KC_HEALTH_ENABLED: "true"
+    ports: ["4880:8080"]
+    volumes: ["./local/keycloak:/opt/keycloak/data/import:ro"]
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q UP <&3
+      interval: 5s
+      retries: 30
+
+  # Stands in for the API Services Portal's credential API. Credentials it issues are real
+  # clients in Keycloak's apigw realm.
+  aps-mock:
+    image: *node-image
+    container_name: chosen-aps-mock
+    command: node /app/server.mjs
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+      PUBLIC_KEYCLOAK_URL: http://localhost:4880
+    ports: ["4002:3002"]
+    volumes: ["./local/aps-mock:/app:ro"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3002/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 5s
+      retries: 10
+    depends_on:
+      keycloak:
+        condition: service_healthy
+
+  # Stands in for CSTAR: which tenants a user belongs to, and their CHOSEN roles in each.
+  # Edit local/cstar-mock/data.json to change who belongs where.
+  cstar-mock:
+    image: *node-image
+    container_name: chosen-cstar-mock
+    command: node /app/server.mjs
+    ports: ["4003:3003"]
+    volumes: ["./local/cstar-mock:/app:ro"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3003/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 5s
+      retries: 10
+
+  # Generates Kong's local config from api-gateway/templates/routes.yaml, then exits.
+  kong-config:
+    image: *node-image
+    container_name: chosen-kong-config
+    working_dir: /api-gateway
+    command: sh -c "npm ci --ignore-scripts --no-audit --no-fund && node scripts/generate-routes.mjs local"
+    volumes: ["./api-gateway:/api-gateway", "/api-gateway/node_modules"]
+
+  # The API gateway, without a database, on http://localhost:4800. Same routes and rate
+  # limits as the real gateway, but stock Kong has no jwt-keycloak plugin, so here only the
+  # backend checks tokens.
+  kong:
+    image: kong:3.9
+    container_name: chosen-kong
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong-local.yaml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+    ports: ["4800:8000"]
+    volumes: ["./api-gateway/generated:/kong:ro"]
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 5s
+      retries: 10
+    depends_on:
+      kong-config:
+        condition: service_completed_successfully
+
   frontend:
-    container_name: frontend
+    container_name: chosen-frontend
     entrypoint: sh -c "npm ci --ignore-scripts && npm run dev"
     environment:
-      BACKEND_URL: http://backend:3000
       PORT: 3000
       NODE_ENV: development
+      # The API through local Kong, as deployed frontends use the real gateway.
+      VITE_API_URL: http://localhost:4800/api
+      # The same sign-in settings the backend gets, read from .env.
+      VITE_KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER:?set KEYCLOAK_ISSUER in .env}
+      VITE_KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:?set KEYCLOAK_CLIENT_ID in .env}
     image: *node-image
-    ports: ["3000:3000"]
+    ports: ["4000:3000"]
     volumes: ["./frontend:/app", "/app/node_modules"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
     working_dir: "/app"
     depends_on:
-      backend:
+      kong:
         condition: service_healthy
 
   caddy:
-    container_name: caddy
+    container_name: chosen-caddy
     profiles: ["caddy"]
     build: ./frontend
     environment:
       NODE_ENV: development
       PORT: 3000
-      BACKEND_URL: http://backend:3000
       LOG_LEVEL: info
-    ports: ["3005:3000"]
+      VITE_API_URL: http://localhost:4800/api
+      # The deployed CSP allows only *.gov.bc.ca; locally the API and Keycloak are on localhost.
+      CSP_LOCAL_SOURCES: http://localhost:4800 http://localhost:4880
+      VITE_KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER:?set KEYCLOAK_ISSUER in .env}
+      VITE_KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:?set KEYCLOAK_CLIENT_ID in .env}
+    ports: ["4005:3000"]
     volumes: ["./frontend/Caddyfile:/etc/caddy/Caddyfile"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]

@@ -15,6 +15,6 @@ describe('Redux store', () => {
   test('is available to components rendered with the test render', () => {
     const { store } = render(<StoreProbe />)
     expect(screen.getByText('store available')).toBeInTheDocument()
-    expect(store.getState()).toEqual({})
+    expect(store.getState()).toEqual({ auth: { status: 'signed-out', user: null, error: null } })
   })
 })

@@ -1,0 +1,26 @@
+{
+  "_comment": "Who belongs to which tenant, and their CHOSEN roles there. Users are keyed by idir_user_guid, which for the local Keycloak users is their fixed user ID (local/keycloak/standard-realm.json). Restart the cstar-mock container after editing.",
+  "tenants": [
+    {
+      "id": "7c1d2b9e-0a4f-4e8b-9b1a-3f5e6d7c8a01",
+      "name": "Road Conditions (local)",
+      "ministryName": "Ministry of Local Testing",
+      "description": "Example tenant for local development."
+    },
+    {
+      "id": "2e8f4a6c-5b3d-4c7e-8a9f-1d2c3b4a5e02",
+      "name": "Wildfire Updates (local)",
+      "ministryName": "Ministry of Local Testing",
+      "description": "Second example tenant, to check tenants can't see each other's data."
+    }
+  ],
+  "members": {
+    "A11CE0000000000000000000000000AD": {
+      "7c1d2b9e-0a4f-4e8b-9b1a-3f5e6d7c8a01": ["CHOSEN_OPERATIONS_ADMIN", "CHOSEN_TOPIC_EDITOR", "CHOSEN_VIEWER"],
+      "2e8f4a6c-5b3d-4c7e-8a9f-1d2c3b4a5e02": ["CHOSEN_VIEWER"]
+    },
+    "5AFF0000000000000000000000000057": {
+      "7c1d2b9e-0a4f-4e8b-9b1a-3f5e6d7c8a01": ["CHOSEN_VIEWER"]
+    }
+  }
+}

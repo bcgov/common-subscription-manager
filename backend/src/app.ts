@@ -25,10 +25,11 @@ export async function bootstrap() {
     prefix: 'v',
   })
   const config = new DocumentBuilder()
-    .setTitle('Users example')
-    .setDescription('The user API description')
+    .setTitle('CHOSEN API')
+    .setDescription(
+      'Common Hosted Subscription for Event Notifications. The contract is docs/openapi.yaml.',
+    )
     .setVersion('1.0')
-    .addTag('users')
     .build()
 
   const document = SwaggerModule.createDocument(app, config)

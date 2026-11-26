@@ -9,6 +9,7 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/e2e/**'],
     globals: true,
     environment: 'jsdom',
+    env: { VITE_API_URL: '/api' },
     setupFiles: 'src/test-setup.ts',
     // you might want to disable it, if you don't have tests that rely on CSS
     // since parsing CSS is slow

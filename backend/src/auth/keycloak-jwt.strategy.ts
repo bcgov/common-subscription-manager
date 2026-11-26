@@ -13,6 +13,11 @@ import { KEYCLOAK_JWT } from './keycloak-token'
  * Both settings are required, with no fallback. A default would most likely be the DEV
  * realm, and a PROD pod that silently accepted DEV tokens is worse than one that won't
  * start.
+ *
+ * The realm's public keys are fetched from the issuer's standard certs URL. KEYCLOAK_JWKS_URI
+ * overrides that for local development only: there the token's issuer is the address the
+ * browser uses (localhost), which the backend container can't reach. It's deliberately not
+ * set in OpenShift.
  */
 @Injectable()
 export class KeycloakJwtStrategy extends PassportStrategy(Strategy, KEYCLOAK_JWT) {
@@ -23,7 +28,8 @@ export class KeycloakJwtStrategy extends PassportStrategy(Strategy, KEYCLOAK_JWT
         cache: true,
         rateLimit: true,
         jwksRequestsPerMinute: 5,
-        jwksUri: `${issuer}/protocol/openid-connect/certs`,
+        jwksUri:
+          config.get<string>('KEYCLOAK_JWKS_URI') || `${issuer}/protocol/openid-connect/certs`,
       }),
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       issuer,

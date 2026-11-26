@@ -20,8 +20,9 @@ info:
     (`/credentials`). CHOSEN has the API Services Portal issue them and links each client ID to
     the tenant. Every caller except the public reaches CHOSEN through the Kong API gateway, which
     checks the token and applies rate limits. CHOSEN then checks the token again and finds the
-    tenant, or Notify, from its client ID (`azp`). Public links are served from a separate,
-    rate-limited hostname.
+    tenant, or Notify, from its client ID (`azp`). Kong is the only way to the backend: CHOSEN's
+    own UI and the public pages behind its links call the API through the gateway too, the public
+    endpoints without credentials and rate-limited per IP address.
 
     **Conventions**
 

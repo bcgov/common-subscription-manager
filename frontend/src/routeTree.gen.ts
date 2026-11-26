@@ -9,50 +9,73 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as StaffRouteImport } from './routes/_staff'
+import { Route as StaffIndexRouteImport } from './routes/_staff/index'
 
-const IndexRoute = IndexRouteImport.update({
+const StaffRoute = StaffRouteImport.update({
+  id: '/_staff',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StaffIndexRoute = StaffIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => StaffRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof StaffIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/': typeof StaffIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_staff': typeof StaffRouteWithChildren
+  '/_staff/': typeof StaffIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths: '/'
   fileRoutesByTo: FileRoutesByTo
   to: '/'
-  id: '__root__' | '/'
+  id: '__root__' | '/_staff' | '/_staff/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  StaffRoute: typeof StaffRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_staff': {
+      id: '/_staff'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof StaffRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_staff/': {
+      id: '/_staff/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof StaffIndexRouteImport
+      parentRoute: typeof StaffRoute
     }
   }
 }
 
+interface StaffRouteChildren {
+  StaffIndexRoute: typeof StaffIndexRoute
+}
+
+const StaffRouteChildren: StaffRouteChildren = {
+  StaffIndexRoute: StaffIndexRoute,
+}
+
+const StaffRouteWithChildren = StaffRoute._addFileChildren(StaffRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  StaffRoute: StaffRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

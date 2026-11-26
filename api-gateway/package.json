@@ -1,0 +1,13 @@
+{
+  "name": "chosen-api-gateway",
+  "private": true,
+  "type": "module",
+  "description": "Generates CHOSEN's Kong config for each environment.",
+  "scripts": {
+    "generate": "node scripts/generate-routes.mjs",
+    "check": "node scripts/generate-routes.mjs --check"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  }
+}

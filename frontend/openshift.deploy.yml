@@ -19,6 +19,15 @@ parameters:
   - name: ORG_NAME
     description: Organization name
     value: bcgov
+  - name: API_URL
+    description: The CHOSEN API through the API gateway, which the browser calls, e.g. https://chosen.dev.api.gov.bc.ca/api.
+    required: true
+  - name: KEYCLOAK_ISSUER
+    description: BC Gov SSO realm people sign in with. Differs per environment (dev., test. or no prefix for PROD).
+    required: true
+  - name: KEYCLOAK_CLIENT_ID
+    description: CHOSEN's SSO client ID, the same in every environment.
+    value: chosen-6820
   - name: DOMAIN
     value: apps.silver.devops.gov.bc.ca
   - name: MIN_REPLICAS
@@ -116,8 +125,13 @@ objects:
               env:
                 - name: LOG_LEVEL
                   value: ${LOG_LEVEL}
-                - name: BACKEND_URL
-                  value: http://${NAME}-${ZONE}-backend
+                # Served to the browser at /static/config.js (see the Caddyfile).
+                - name: VITE_API_URL
+                  value: ${API_URL}
+                - name: VITE_KEYCLOAK_ISSUER
+                  value: ${KEYCLOAK_ISSUER}
+                - name: VITE_KEYCLOAK_CLIENT_ID
+                  value: ${KEYCLOAK_CLIENT_ID}
                 # readOnlyRootFilesystem: true → redirect every writable path
                 # onto an emptyDir. Caddy stores config/data under the XDG dirs
                 # (mounted at /tmp/caddy); Coraza writes SecTmpDir/SecDataDir

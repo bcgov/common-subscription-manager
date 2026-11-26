@@ -269,7 +269,7 @@ sequenceDiagram
 
 ## Integration and authentication
 
-Services call CHOSEN **through Kong (the API gateway), with OAuth2 client credentials**. A tenant creates its credentials inside CHOSEN: CHOSEN asks the API Services Portal (APS) to issue them, and links them to the tenant as they're issued. The service exchanges its client ID and secret for a short-lived token, and sends the token with each call. Kong checks the token and applies rate limits, then CHOSEN checks it again and looks up which tenant the client belongs to. Only the public links skip credentials, because the token in the link is the permission.
+**Kong (the API gateway) is the only way to CHOSEN's backend**, for services, for CHOSEN's own UI and for the public pages behind links. Services call it **with OAuth2 client credentials**. A tenant creates its credentials inside CHOSEN: CHOSEN asks the API Services Portal (APS) to issue them, and links them to the tenant as they're issued. The service exchanges its client ID and secret for a short-lived token, and sends the token with each call. Kong checks the token and applies rate limits, then CHOSEN checks it again and looks up which tenant the client belongs to. Only the public links skip credentials, because the token in the link is the permission.
 
 | Caller | Route | How it authenticates | What it can do |
 |---|---|---|---|
@@ -277,7 +277,7 @@ Services call CHOSEN **through Kong (the API gateway), with OAuth2 client creden
 | **Notify**: recipient queries | Kong | A token from **Notify's own client credentials**, which belong to no tenant | Query recipients for any tenant, naming the tenant in each request. |
 | **Notify**: inbound SMS and delivery webhooks | Kong | The same Notify token, **plus** an HMAC signature on the body | Report STOP/START, keyword replies, bounces and complaints. The signature proves the body wasn't altered. |
 | **CHOSEN → Notify** (confirmations, keyword replies, sign-in links) | Notify's Kong route | CHOSEN's own Notify credential | Send messages on behalf of a tenant, with that tenant's templates, sender and usage limits. |
-| **The public** (links in emails and texts, mail clients' one-click unsubscribe) | A public CHOSEN hostname, rate-limited | Nothing extra: the signed token in the link | Confirm, unsubscribe or manage that person's own subscriptions. |
+| **The public** (links in emails and texts, mail clients' one-click unsubscribe) | Kong's public route, rate-limited per IP address. The pages themselves come from CHOSEN's web hostname. | Nothing extra: the signed token in the link | Confirm, unsubscribe or manage that person's own subscriptions. |
 | **Tenant staff** (CHOSEN's UI) | Kong | IDIR sign-in, plus a CHOSEN role for the tenant in CSTAR | Manage the tenant's topics and settings, and its client credentials. |
 | **CHOSEN operators** | Kong | IDIR sign-in, plus the `CHOSEN_ADMIN` role | Set up tenants, and issue Notify's credentials. |
 
@@ -331,20 +331,21 @@ flowchart LR
         kong["Checks the token<br/>Rate limits"]
     end
 
-    chosen(["CHOSEN<br/>checks the token again<br/>finds the tenant, or Notify"])
-    pub["Public CHOSEN hostname<br/>rate-limited"]
+    chosen(["CHOSEN backend<br/>checks the token again<br/>finds the tenant, or Notify"])
+    web["CHOSEN web pages<br/>(static files only)"]
     notifyApi["Notify API<br/>(Notify's Kong route)"]
     aps["API Services Portal"]
 
     lob -->|"Client credentials"| sso
     notify -->|"Client credentials"| sso
     staff -->|"IDIR sign-in"| sso
+    staff -->|"Load the UI"| web
+    citizen -->|"Open the link"| web
     lob -->|"Token"| kong
     notify -->|"Token<br/>+ HMAC on webhooks"| kong
     staff -->|"Token"| kong
+    citizen -->|"Signed link token<br/>(public route, rate-limited)"| kong
     kong --> chosen
-
-    citizen -->|"Signed link token"| pub --> chosen
 
     chosen -->|"Issue credentials"| aps
     chosen -->|"CHOSEN's Notify credential"| notifyApi
@@ -352,6 +353,7 @@ flowchart LR
 
 Notes:
 - **Why client credentials, not API keys:** CHOSEN holds citizens' contact details. A leaked API key works until someone notices, while a stolen token expires within minutes. The secret itself goes only to SSO, never with each request. Notify uses API keys so that GC Notify users can keep theirs; CHOSEN has no such users.
+- **Nothing reaches the backend except through Kong.** The web pages are static files; the browser calls the API at the gateway's URL. The backend has no route of its own, and OpenShift's network policy admits only Kong.
 - **CHOSEN checks every token itself**, not just Kong. So a client that's been revoked, or a request that somehow avoids Kong, is still refused.
 - **Calls go through Kong, even from Notify.** Notify and CHOSEN run in different OpenShift namespaces. Calling CHOSEN directly would need cross-namespace network rules and would bypass Kong's rate limits and logs. Recipients come back up to 1,000 at a time, so even a large send needs only a few gateway calls.
 - **Notify calls the REST API directly.** The MCP tools are for other services and AI agents that discover tools at runtime. They sit behind Kong and use the same credentials.

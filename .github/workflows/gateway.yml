@@ -1,0 +1,108 @@
+name: API Gateway
+
+# Checks on every PR that touches it that the Kong config still generates for every
+# environment. Publishing is manual until the OpenShift namespaces and the GWA_ACCT secret
+# exist; then the deploy workflows will call it.
+on:
+  pull_request:
+    paths: ["api-gateway/**", ".github/workflows/gateway.yml"]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Which gateway environment to publish. dev publishes every open PR's routes.
+        type: choice
+        options: [dev, test, prod]
+
+permissions: {}
+
+jobs:
+  check:
+    name: Check gateway config
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: api-gateway
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: npm ci
+      - run: npm run check
+
+  publish:
+    name: Publish (${{ inputs.environment }})
+    if: github.event_name == 'workflow_dispatch'
+    # PR environments run with no GitHub environment, as in reusable-deploy.yml.
+    environment: ${{ inputs.environment != 'dev' && inputs.environment || '' }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    concurrency:
+      group: gateway-publish-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pull-requests: read
+    defaults:
+      run:
+        working-directory: api-gateway
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: npm ci
+
+      - name: Generate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+          if [ "${TARGET}" = "dev" ]; then
+            # Publishing the dev qualifier replaces all of it, so include every open PR.
+            PRS=$(gh pr list --repo "${GITHUB_REPOSITORY}" --state open --json number --jq 'map(.number) | join(",")')
+            echo "Open PRs: ${PRS:-none}"
+            node scripts/generate-routes.mjs pr --prs "${PRS}"
+            echo "CONFIG_FILE=generated/gw-dev.yaml" >> "${GITHUB_ENV}"
+          else
+            node scripts/generate-routes.mjs "${TARGET}"
+            echo "CONFIG_FILE=generated/gw-${TARGET}.yaml" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Install gwa CLI
+        env:
+          VERSION: "3.0.7"
+          SHA256: "685f399f07c5d33f60d73eb4d319038980a3c546b5e1418df42cf17c6de9ddf4"
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/gwa.tgz "https://github.com/bcgov/gwa-cli/releases/download/v${VERSION}/gwa_Linux_x86_64.tgz"
+          echo "${SHA256}  /tmp/gwa.tgz" | sha256sum -c -
+          tar -xzf /tmp/gwa.tgz -C /tmp gwa
+          sudo mv /tmp/gwa /usr/local/bin/gwa
+          gwa --version
+
+      - name: Publish
+        env:
+          GWA_ACCT: ${{ secrets.GWA_ACCT }}
+          QUALIFIER: ${{ inputs.environment }}
+        run: |
+          set -uo pipefail
+          CLIENT_ID=$(jq -r '.client_id' <<<"${GWA_ACCT}")
+          CLIENT_SECRET=$(jq -r '.client_secret' <<<"${GWA_ACCT}")
+          # Values pulled out of a secret aren't masked automatically.
+          echo "::add-mask::${CLIENT_SECRET}"
+          gwa login --client-id "${CLIENT_ID}" --client-secret "${CLIENT_SECRET}" || exit 1
+          # publish-gateway reads the gateway from the CLI's config, not from --gateway.
+          gwa config set gateway gw-a88e8
+          OUT=$(gwa publish-gateway "${CONFIG_FILE}" --qualifier "${QUALIFIER}" 2>&1); STATUS=$?
+          echo "${OUT}"
+          # gwa can exit 0 even when the gateway rejects the config.
+          if [ "${STATUS}" -ne 0 ] || grep -qiE "publish failed|Errors encountered|Rejecting request|Validation Errors|Sync Failed" <<<"${OUT}"; then
+            echo "::error::gwa publish-gateway failed for ${QUALIFIER}"
+            exit 1
+          fi

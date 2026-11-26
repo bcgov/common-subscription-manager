@@ -1,9 +1,34 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import apiService from '@/service/api-service'
+import { getAccessToken } from '@/auth/keycloak'
+
+vi.mock('@/auth/keycloak', () => ({ getAccessToken: vi.fn() }))
 
 describe('apiService', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    vi.mocked(getAccessToken).mockResolvedValue(undefined)
+  })
+
+  it('sends the access token when someone is signed in', async () => {
+    vi.mocked(getAccessToken).mockResolvedValue('access-token')
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+
+    await apiService.get('/v1/credentials')
+    const headers = fetchSpy.mock.calls[0][1]?.headers as Headers
+    expect(headers.get('Authorization')).toBe('Bearer access-token')
+  })
+
+  it('sends no Authorization header when nobody is signed in', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+
+    await apiService.get('/v1/public/unsubscribe/abc')
+    const headers = fetchSpy.mock.calls[0][1]?.headers as Headers
+    expect(headers.has('Authorization')).toBe(false)
   })
 
   it('performs GET request and returns JSON data', async () => {
@@ -50,10 +75,10 @@ describe('apiService', () => {
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify(mockResponse), { status: 201 }))
 
-    const result = await apiService.post<typeof mockResponse>('/v1/users', payload)
+    const result = await apiService.post<typeof mockResponse>('/v1/topics', payload)
     expect(result).toEqual(mockResponse)
     expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/v1/users',
+      '/api/v1/topics',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify(payload),
@@ -67,10 +92,10 @@ describe('apiService', () => {
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify(payload), { status: 200 }))
 
-    const result = await apiService.put<typeof payload>('/v1/users/1', payload)
+    const result = await apiService.put<typeof payload>('/v1/topics/road-closures', payload)
     expect(result).toEqual(payload)
     expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/v1/users/1',
+      '/api/v1/topics/road-closures',
       expect.objectContaining({
         method: 'PUT',
         body: JSON.stringify(payload),
@@ -83,10 +108,10 @@ describe('apiService', () => {
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({ deleted: true }), { status: 200 }))
 
-    const result = await apiService.delete<{ deleted: boolean }>('/v1/users/1')
+    const result = await apiService.delete<{ deleted: boolean }>('/v1/topics/road-closures')
     expect(result).toEqual({ deleted: true })
     expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/v1/users/1',
+      '/api/v1/topics/road-closures',
       expect.objectContaining({ method: 'DELETE' }),
     )
   })
@@ -94,7 +119,7 @@ describe('apiService', () => {
   it('handles 204 No Content without error', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(null, { status: 204 }))
 
-    const result = await apiService.delete('/v1/users/1')
+    const result = await apiService.delete('/v1/topics/road-closures')
     expect(result).toBeUndefined()
   })
 

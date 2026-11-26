@@ -89,6 +89,8 @@ jobs:
           - name: frontend
             file: frontend/openshift.deploy.yml
             parameters: -p IMAGE_TAG="${{ inputs.tag }}"
+              -p KEYCLOAK_ISSUER="https://${{ inputs.environment == 'prod' && 'loginproxy.gov.bc.ca' || inputs.environment == 'test' && 'test.loginproxy.gov.bc.ca' || 'dev.loginproxy.gov.bc.ca' }}/auth/realms/standard"
+              -p API_URL="${{ inputs.environment == 'prod' && 'https://chosen.api.gov.bc.ca/api' || inputs.environment == 'test' && 'https://chosen.test.api.gov.bc.ca/api' || format('https://chosen.dev.api.gov.bc.ca/pr-{0}/api', inputs.target) }}"
     outputs:
       triggered: ${{ steps.deploy.outputs.triggered }}
     steps:

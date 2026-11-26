@@ -13,6 +13,9 @@ parameters:
   - name: DB_PASSWORD
     description: Password for the PostgreSQL connection user.
     required: true
+  - name: API_GATEWAY_LICENSE_PLATE
+    description: License plate of the namespaces running the API Services Portal's Kong data plane.
+    value: 264e6f
 objects:
   - apiVersion: v1
     kind: Secret
@@ -41,6 +44,10 @@ objects:
                   network.openshift.io/policy-group: ingress
       policyTypes:
         - Ingress
+  # The backend is reachable only through the API Services Portal's Kong, which runs in its
+  # own namespaces: for services, and for CHOSEN's own frontend, whose browser code calls the
+  # API at the gateway's URL. Nothing else in the cluster, the frontend pods included, can
+  # reach it.
   - apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
     metadata:
@@ -53,10 +60,12 @@ objects:
           deployment: ${NAME}-${ZONE}-backend
       ingress:
         - from:
-            - podSelector:
+            - namespaceSelector:
                 matchLabels:
-                  app: ${NAME}-${ZONE}
-                  deployment: ${NAME}-${ZONE}-frontend
+                  name: ${API_GATEWAY_LICENSE_PLATE}
+          ports:
+            - protocol: TCP
+              port: 3000
       policyTypes:
         - Ingress
   - apiVersion: networking.k8s.io/v1

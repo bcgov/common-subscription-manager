@@ -1,7 +1,8 @@
 import { combineSlices, configureStore } from '@reduxjs/toolkit'
+import { authSlice } from './slices/auth.slice'
 
-// Pass each slice in as it's written, e.g. combineSlices(authSlice, topicsSlice).
-export const rootReducer = combineSlices()
+// Pass each slice in as it's written.
+export const rootReducer = combineSlices(authSlice)
 
 export type RootState = ReturnType<typeof rootReducer>
 

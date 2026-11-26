@@ -19,22 +19,38 @@ Design docs, which are the source of truth until code exists:
 - [docs/openapi.yaml](docs/openapi.yaml): API contract (OpenAPI 3.1)
 - [README.md](README.md): opt-out and unsubscribe flows
 
-Status: design phase. The backend still holds the quickstart template's sample `users` module and Flyway schema; both get replaced by the CHOSEN model.
+Status: design phase. The template's sample `users` module, schema and dashboard are gone; the backend has no domain code yet, and the only migration (`V1.0.0`) creates the `chosen` schema.
 
 ## Layout
 - `backend/` (NestJS, TypeORM), `frontend/` (Vite, React, TanStack Router, Caddy), `migrations/` (Flyway SQL in `migrations/sql/`)
+- `api-gateway/` (Kong route template, per-environment config and the generator; see its README), `local/` (the local stand-ins for SSO and the API Services Portal)
 - OpenShift templates (not Helm): `common/openshift.init.yml`, `common/openshift.database.yml`, `common/openshift.backup.yml`, `backend/openshift.deploy.yml`, `frontend/openshift.deploy.yml`
 - Workflows: `.github/workflows/` (PR deploys via `reusable-deploy.yml`, tests via `reusable-tests.yml`); integration and load tests in `common/tests/`
 - HTTP requests: Prefer native `fetch` over Axios for new HTTP requests; use Axios only when native fetch is insufficient (e.g. upload progress tracking, complex interceptors).
 
 ## Build, test, run
-- Full stack locally: `cp .env.example .env` once, then `docker compose up` (optional profiles: `schemaspy`, `caddy`). Compose refuses to start the backend without `.env`.
+- Full stack locally: `cp .env.example .env` once, then `docker compose up` (optional profiles: `schemaspy`, `caddy`). Compose refuses to start without `.env`. It runs alongside Notify's local stack: containers are named `chosen-*` and use their own ports.
+
+  | Port | What | Notes |
+  |---|---|---|
+  | 4000 | Frontend (Vite) | Staff pages sign in through Keycloak; the browser calls the API through Kong |
+  | 4002 | APS mock | Issues and rotates client credentials as real clients in Keycloak's `apigw` realm |
+  | 4003 | CSTAR mock | Tenants and CHOSEN roles per user, from `local/cstar-mock/data.json` |
+  | 4005 | Caddy (`caddy` profile) | The production web server, serving the built frontend |
+  | 4800 | Kong | **The only way to the backend**, as when deployed (the backend has no host port). The real gateway's routes, generated from `api-gateway/`; it doesn't check tokens locally, the backend does. API docs: `http://localhost:4800/api/docs` |
+  | 4880 | Keycloak | Stands in for SSO. Admin console `admin`/`admin`. `standard` realm users: `admin`/`admin` (with `CHOSEN_ADMIN`) and `staff`/`staff`, client `chosen-local` |
+  | 5433 | Postgres | Not 5432, which Notify uses |
+
+  - Tokens name `http://localhost:4880` as their issuer, which the backend container can't reach, so `KEYCLOAK_JWKS_URI` points it at `keycloak:8080` for the keys. That setting is local-only; OpenShift doesn't set it.
+  - The frontend reads the same `KEYCLOAK_ISSUER` and `KEYCLOAK_CLIENT_ID` from `.env` as the backend, so the two can't disagree. Deployed, Caddy serves them, and the gateway's API URL, to the browser at `/static/config.js`.
+  - The local users' IDs are fixed so the CSTAR mock can refer to them: `admin` is in two tenants (operations admin in one), `staff` is a viewer in one.
+- API gateway config (`cd api-gateway`): `npm ci`, `npm run check`
 - Backend (`cd backend`): `npm ci`, `npm run build`, `npm run lint`, `npm test`, `npm run test:cov`
 - Frontend (`cd frontend`): `npm ci`, `npm run build`, `npm run lint`, `npm run test:unit`; e2e: `npx playwright install --with-deps chromium`, then `npx playwright test --project="chromium"`
 - Deploys to OpenShift run from GitHub Actions (PR open, merge), not from a workstation
 
 Verification traps:
-- **`npm test` is not what CI runs.** It is `vitest --dir src`, so it skips `test/`. CI runs `npm run test:cov`, which covers `src/` and `test/`. A change that breaks the Nest module graph passes `npm test` and fails CI. `test/app.e2e-spec.ts` boots the whole `AppModule` and needs Postgres reachable (`POSTGRES_HOST`/`POSTGRES_PORT`, default `localhost:5432`, user `postgres`, password `default`).
+- **`npm test` is not what CI runs.** It is `vitest --dir src`, so it skips `test/`. CI runs `npm run test:cov`, which covers `src/` and `test/`. A change that breaks the Nest module graph passes `npm test` and fails CI. `test/app.e2e-spec.ts` boots the whole `AppModule` and needs Postgres reachable (`POSTGRES_HOST`/`POSTGRES_PORT`, default `localhost:5432`, user `postgres`, password `default`). Against the Docker Compose database, set `POSTGRES_PORT=5433`.
 - **`npm run build` is the backend typecheck.** `nest build` runs `tsc` with type checking.
 - **Generate lockfiles with CI's npm.** CI uses Node 24 (`node_version` in `analysis.yml`), which ships npm 11. Different npm majors resolve lockfiles differently, and `npm ci` in CI rejects a lockfile it considers out of sync. If one was written by the wrong npm, restore it and rerun `npx npm@11 install --package-lock-only`.
 
@@ -55,7 +71,7 @@ TEST and PROD run the backend as several autoscaled replicas (`HorizontalPodAuto
 
 ## Data layer
 
-- **Postgres schema:** CHOSEN objects go in the `chosen` schema. The template's `users` schema is to be removed.
+- **Postgres schema:** CHOSEN objects go in the `chosen` schema, which `V1.0.0__create_chosen_schema.sql` creates. It's also Flyway's default schema (`FLYWAY_DEFAULT_SCHEMA`) and TypeORM's (`POSTGRES_SCHEMA`).
 - **Flyway owns the schema.** TypeORM runs with `synchronize: false`; never let it create or alter tables.
 - **Migrations:** `migrations/sql/V#.#.#__snake_case_description.sql`, following the existing files.
   - **Forward-only.** Never edit a migration that has been applied anywhere; add a new one.
@@ -80,7 +96,7 @@ CHOSEN's whole purpose is holding citizens' contact details, so these rules appl
 - **[docs/openapi.yaml](docs/openapi.yaml) is the contract.** Implement against it, and change it in the same PR as any behaviour change. Swagger decorators in the code must describe the same contract.
 - **Every endpoint is exposed.** Tenant apps, Notify, mail clients and the public all call CHOSEN from outside this repo, so a renamed field, a tightened validation rule or a changed status code breaks someone. Prefer additive changes, and never repurpose an existing field.
 - **Request bodies are DTO classes with class-validator decorators**, validated by a global `ValidationPipe` with `whitelist` and `forbidNonWhitelisted`, so an undeclared property is a `400`. This isn't wired up yet; add it with the first real endpoint.
-- **No endpoint is unprotected by omission.** `ExplicitAuthGuard` (`src/common/guards/`) is registered globally as `APP_GUARD` and rejects, with `401`, any route that is neither `@Public()` nor guarded by at least one guard marked `@AuthenticatesCaller()` (`src/common/decorators/authenticates-caller.decorator.ts`). It checks nothing about the caller; the route's own guards do that. Mark a guard `@AuthenticatesCaller()` only if it verifies a token, API key or signature and rejects when it can't. A feature-flag guard or a rate-limit guard on its own leaves the route rejected. Only `/public/*`, health, metrics and the root are public. The template's `users` sample is also marked `@Public()` until it's removed.
+- **No endpoint is unprotected by omission.** `ExplicitAuthGuard` (`src/common/guards/`) is registered globally as `APP_GUARD` and rejects, with `401`, any route that is neither `@Public()` nor guarded by at least one guard marked `@AuthenticatesCaller()` (`src/common/decorators/authenticates-caller.decorator.ts`). It checks nothing about the caller; the route's own guards do that. Mark a guard `@AuthenticatesCaller()` only if it verifies a token, API key or signature and rejects when it can't. A feature-flag guard or a rate-limit guard on its own leaves the route rejected. Only `/public/*`, health, metrics and the root are public.
 - **Roles** are declared with `@Roles()` (`src/common/decorators/roles.decorator.ts`), as in Notify: `SsoRole` for Keycloak client roles that aren't tied to a tenant, and `CstarRole` for a user's roles in one tenant. `@Roles()` only records metadata, so it must sit beside a `@UseGuards()` guard that enforces it.
 - **`ChosenAdminGuard`** enforces SSO roles for CHOSEN-wide routes, such as `/admin/*`. It verifies the BC Gov SSO token (`KeycloakJwtStrategy` in `src/auth/`: signature, expiry, `KEYCLOAK_ISSUER`, `KEYCLOAK_CLIENT_ID`), checks `azp`, then requires one of the `SsoRole`s in `@Roles()`. A route using it with no `SsoRole` refuses everyone. The tenant-scoped guard, which checks CSTAR membership and `CstarRole`s, isn't built yet.
 - **Public endpoints:** a `GET` never changes state, because mail scanners open links. Responses must not reveal whether an address is subscribed.
@@ -95,7 +111,7 @@ The README's "Integration and authentication" section explains the design. These
 - **Notify is a system client** (`system_role = NOTIFY`). It's the only caller allowed to name a tenant in a request (`/recipients/query`). Tenant clients must never reach Notify-only endpoints, and Notify's client must never reach tenant endpoints.
 - **Client secrets are never stored, logged or returned twice.** They come back from the API Services Portal and go straight into the issue or rotate response. Revoking is immediate in CHOSEN; removing the consumer in the portal is manual until APS adds a delete API.
 - **Webhooks (`/inbound/*`) need both** Notify's token and a valid HMAC signature over the raw body. Compare signatures in constant time, and reject the request before parsing the body if the signature is wrong.
-- **Only Kong and the public-links route can reach the backend.** The network policy admits nothing else. Don't loosen it, and don't add another way in.
+- **Kong is the only way to the backend**, for services, for CHOSEN's own UI and for public links. The browser calls the API at the gateway's URL (`VITE_API_URL`); the frontend's Caddy serves only static files and never proxies to the backend. The backend has no OpenShift Route, and its network policy admits only the API Services Portal's Kong namespaces. Don't add a proxy, a Route or a policy that opens another way in, locally either.
 - **`/public/*` takes no credentials.** The signed token in the link is the permission, and the route is rate-limited.
 - **CHOSEN calls Notify as an ordinary Notify client**, with its own Notify credential held in a secret.
 - **People sign in with IDIR** through SSO's `standard` realm (`chosen-6820`). Operators need the `CHOSEN_ADMIN` SSO role (`adminAuth`). Tenant staff need a CSTAR role for the tenant (`tenantUserAuth`); managing credentials needs `CHOSEN_OPERATIONS_ADMIN`.

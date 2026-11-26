@@ -45,6 +45,7 @@ jobs:
             npm ci
             npm run lint
             npm run format:check
+            npm run build
             npm run test:cov
             )
           working_directory: backend
@@ -79,6 +80,7 @@ jobs:
             npm ci
             npm run lint
             npm run format:check
+            npm run typecheck
             npm run test:cov
             )
           working_directory: frontend

@@ -19,24 +19,28 @@
 		`
 	}
 
+	# Runtime settings for the browser, from this container's environment, so one image serves
+	# every environment. Must come before file_server, which would otherwise serve the
+	# placeholder in public/static/config.js.
+	handle_path /static/config.js {
+		header Content-Type text/javascript
+		respond `window.VITE_API_URL="{$VITE_API_URL}";
+window.VITE_KEYCLOAK_ISSUER="{$VITE_KEYCLOAK_ISSUER}";
+window.VITE_KEYCLOAK_CLIENT_ID="{$VITE_KEYCLOAK_CLIENT_ID}";`
+	}
+
 	root * /srv
 	encode zstd gzip
 	file_server
 	@spa_router {
-		not path /api*
+		not path /static/config.js
 		file {
 			try_files {path} /index.html
 		}
 	}
 	rewrite @spa_router {http.matchers.file.relative}
-	# Handle backend metrics endpoint separately to avoid proxying it to the backend
-	@backend_metrics path /api/metrics /api/metrics/
-	respond @backend_metrics 404
-	# Proxy requests to API service
-	reverse_proxy /api* {$BACKEND_URL} {
-		header_up Host {http.reverse_proxy.upstream.hostport}
-		header_up X-Real-IP {remote_host}
-	}
+	# This server only serves the frontend. The browser calls the API through the API gateway
+	# (VITE_API_URL); nothing here reaches the backend.
 	header {
 		-Server
 		X-Frame-Options "SAMEORIGIN"
@@ -52,7 +56,7 @@
 			frame-ancestors 'self';
 			form-action 'self';
 			block-all-mixed-content;
-			connect-src 'self' https://*.gov.bc.ca wss://*.gov.bc.ca;"
+			connect-src 'self' https://*.gov.bc.ca wss://*.gov.bc.ca {$CSP_LOCAL_SOURCES};"
 		Referrer-Policy "same-origin"
 		Permissions-Policy "fullscreen=(self), camera=(), microphone=()"
 		Cross-Origin-Resource-Policy "same-origin"

@@ -12,6 +12,8 @@ on:
 env:
   DOMAIN: apps.silver.devops.gov.bc.ca
   PREFIX: ${{ github.event.repository.name }}-${{ inputs.target }}
+  # The backend is reachable only through the API gateway; PR environments are under /pr-<n>.
+  API_GATEWAY_URL: ${{ inputs.target == 'test' && 'https://chosen.test.api.gov.bc.ca' || inputs.target == 'prod' && 'https://chosen.api.gov.bc.ca' || format('https://chosen.dev.api.gov.bc.ca/pr-{0}', inputs.target) }}
 
 permissions: {}
 
@@ -38,7 +40,7 @@ jobs:
 
       - name: Wait for backend health check
         env:
-          BASE_URL: https://${{ env.PREFIX }}.${{ env.DOMAIN }}
+          BASE_URL: ${{ env.API_GATEWAY_URL }}
         run: |
           echo "Waiting for backend health check at ${BASE_URL}/api/health..."
           for i in {1..30}; do
@@ -52,15 +54,6 @@ jobs:
           done
           echo "ERROR: Backend did not become healthy in time."
           exit 1
-
-      - name: Run Integration Tests
-        env:
-          API_NAME: nest
-          BASE_URL: https://${{ env.PREFIX }}.${{ env.DOMAIN }}
-        run: |
-          cd common/tests/integration
-          npm ci
-          node src/main.js
 
   e2e-tests:
     name: E2E

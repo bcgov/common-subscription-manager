@@ -132,7 +132,7 @@ objects:
                       name: ${NAME}-${ZONE}-database
                       key: database-password
                 - name: FLYWAY_DEFAULT_SCHEMA
-                  value: "users"
+                  value: "chosen"
                 - name: FLYWAY_BASELINE_ON_MIGRATE
                   value: "true"
               resources:
@@ -184,7 +184,7 @@ objects:
                       name: ${NAME}-${ZONE}-database
                       key: database-password
                 - name: POSTGRES_SCHEMA
-                  value: "users"
+                  value: "chosen"
               resources:
                 requests:
                   cpu: ${CPU_REQUEST}

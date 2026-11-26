@@ -1,0 +1,122 @@
+{
+  "realm": "standard",
+  "displayName": "Local stand-in for BC Gov SSO's standard realm (IDIR sign-in)",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "chosen-local",
+      "name": "CHOSEN (local)",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "http://localhost:4000/*",
+        "http://localhost:4005/*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "chosen-local",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        },
+        {
+          "name": "client_roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "config": {
+            "usermodel.clientRoleMapping.clientId": "chosen-local",
+            "claim.name": "client_roles",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true"
+          }
+        },
+        {
+          "name": "idir_user_guid",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "config": {
+            "user.attribute": "id",
+            "claim.name": "idir_user_guid",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true"
+          }
+        },
+        {
+          "name": "idir_username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "idir_username",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "roles": {
+    "client": {
+      "chosen-local": [
+        {
+          "name": "CHOSEN_ADMIN",
+          "description": "CHOSEN operator"
+        }
+      ]
+    }
+  },
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "email": "admin@example.com",
+      "emailVerified": true,
+      "firstName": "Local",
+      "lastName": "Operator",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "chosen-local": [
+          "CHOSEN_ADMIN"
+        ]
+      },
+      "id": "A11CE0000000000000000000000000AD"
+    },
+    {
+      "username": "staff",
+      "enabled": true,
+      "email": "staff@example.com",
+      "emailVerified": true,
+      "firstName": "Local",
+      "lastName": "Staff",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "staff",
+          "temporary": false
+        }
+      ],
+      "id": "5AFF0000000000000000000000000057"
+    }
+  ]
+}

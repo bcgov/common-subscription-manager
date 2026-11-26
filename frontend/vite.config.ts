@@ -18,13 +18,8 @@ export default defineConfig({
       // Allow serving files from one level up to the project root
       allow: ['..'],
     },
-    proxy: {
-      // Proxy API requests to the backend
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-    },
+    // No /api proxy: the browser calls the API through Kong (VITE_API_URL), as it does when
+    // deployed.
   },
   resolve: {
     // https://vitejs.dev/config/shared-options.html#resolve-alias

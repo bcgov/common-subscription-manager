@@ -1,16 +1,18 @@
+import { getAccessToken } from '@/auth/keycloak'
+import { apiBaseUrl } from '@/config'
+
 class APIService {
-  private readonly baseURL: string
-
-  constructor(baseURL = '/api') {
-    this.baseURL = baseURL
-  }
-
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const url = `${this.baseURL}${path.startsWith('/') ? path : `/${path}`}`
+    const url = `${apiBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`
     const headers = new Headers(options.headers)
 
     if (!headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json')
+    }
+    // Only staff are ever signed in; public pages call the API without a token.
+    const token = await getAccessToken()
+    if (token && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${token}`)
     }
 
     try {
