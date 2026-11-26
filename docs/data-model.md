@@ -292,4 +292,4 @@ Addresses and other personal data are encrypted by CHOSEN before they're written
 
 ## Open questions
 
-1. **Retention:** how long we keep unsubscribed contacts, consent history and inbound texts. Deferred; not needed for this draft.
+1. **Retention:** how long we keep unsubscribed contacts, consent history and inbound texts. Likely years; deferred until the first build is done.

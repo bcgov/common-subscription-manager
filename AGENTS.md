@@ -28,7 +28,7 @@ Status: design phase. The backend still holds the quickstart template's sample `
 - HTTP requests: Prefer native `fetch` over Axios for new HTTP requests; use Axios only when native fetch is insufficient (e.g. upload progress tracking, complex interceptors).
 
 ## Build, test, run
-- Full stack locally: `docker compose up` (optional profiles: `schemaspy`, `caddy`)
+- Full stack locally: `cp .env.example .env` once, then `docker compose up` (optional profiles: `schemaspy`, `caddy`). Compose refuses to start the backend without `.env`.
 - Backend (`cd backend`): `npm ci`, `npm run build`, `npm run lint`, `npm test`, `npm run test:cov`
 - Frontend (`cd frontend`): `npm ci`, `npm run build`, `npm run lint`, `npm run test:unit`; e2e: `npx playwright install --with-deps chromium`, then `npx playwright test --project="chromium"`
 - Deploys to OpenShift run from GitHub Actions (PR open, merge), not from a workstation
@@ -108,7 +108,7 @@ What counts: requests newly rejected or accepted; new required fields; changed d
 
 ## Configuration
 
-**Define every new backend environment variable in OpenShift, in every environment** (DEV, which PR environments share, TEST and PROD), in the change that introduces it. A code default is a safety net for local runs and tests, not the production setting. Secrets go in that namespace's secret; non-sensitive tunables are set explicitly too. Secrets aren't in the repo, so list each variable and its value per environment in the PR description. Add local values to `docker-compose.yml` if the local stack needs them.
+**Define every new backend environment variable in OpenShift, in every environment** (DEV, which PR environments share, TEST and PROD), in the change that introduces it. A code default is a safety net for local runs and tests, not the production setting. Secrets go in that namespace's secret; non-sensitive tunables are set explicitly too. Secrets aren't in the repo, so list each variable and its value per environment in the PR description. Add a working local value to `.env.example`, which Docker Compose passes to the backend through the git-ignored `.env`, with secrets left blank. Only wiring between containers (hostnames, the local database) goes in `docker-compose.yml`.
 
 ## Programming standards
 

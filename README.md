@@ -276,7 +276,7 @@ Services call CHOSEN **through Kong (the API gateway), with OAuth2 client creden
 | **Tenant app** (a line-of-business service) | Kong | A token from its tenant's client credentials | Manage its own topics, subscribers and suppressions. Every call is limited to that tenant's data. |
 | **Notify**: recipient queries | Kong | A token from **Notify's own client credentials**, which belong to no tenant | Query recipients for any tenant, naming the tenant in each request. |
 | **Notify**: inbound SMS and delivery webhooks | Kong | The same Notify token, **plus** an HMAC signature on the body | Report STOP/START, keyword replies, bounces and complaints. The signature proves the body wasn't altered. |
-| **CHOSEN → Notify** (confirmations, keyword replies, sign-in links) | Notify's Kong route | CHOSEN's own Notify credential | Send messages. CHOSEN is just another Notify client. |
+| **CHOSEN → Notify** (confirmations, keyword replies, sign-in links) | Notify's Kong route | CHOSEN's own Notify credential | Send messages on behalf of a tenant, with that tenant's templates, sender and usage limits. |
 | **The public** (links in emails and texts, mail clients' one-click unsubscribe) | A public CHOSEN hostname, rate-limited | Nothing extra: the signed token in the link | Confirm, unsubscribe or manage that person's own subscriptions. |
 | **Tenant staff** (CHOSEN's UI) | Kong | IDIR sign-in, plus a CHOSEN role for the tenant in CSTAR | Manage the tenant's topics and settings, and its client credentials. |
 | **CHOSEN operators** | Kong | IDIR sign-in, plus the `CHOSEN_ADMIN` role | Set up tenants, and issue Notify's credentials. |
@@ -356,8 +356,9 @@ Notes:
 - **Calls go through Kong, even from Notify.** Notify and CHOSEN run in different OpenShift namespaces. Calling CHOSEN directly would need cross-namespace network rules and would bypass Kong's rate limits and logs. Recipients come back up to 1,000 at a time, so even a large send needs only a few gateway calls.
 - **Notify calls the REST API directly.** The MCP tools are for other services and AI agents that discover tools at runtime. They sit behind Kong and use the same credentials.
 
+**Messages CHOSEN sends are sent on behalf of the tenant.** Confirmations, keyword replies and sign-in links use the tenant's own Notify templates, sender and usage limits, so citizens see the service they subscribed to, and each tenant's usage stays accurate. This needs a trusted "send on behalf of" capability in Notify, which only CHOSEN's Notify credential may use.
+
 Still to decide:
-- **Whose name confirmations are sent under.** Either **(A)** CHOSEN sends as itself, with one sender for every tenant, or **(B)** CHOSEN sends on behalf of the tenant, using the tenant's own Notify templates, sender and usage limits. B is recommended, because it's what citizens expect and it keeps each tenant's usage accurate. It needs a trusted "send on behalf of" capability in Notify.
 - **Whether the API Services Portal will add an API to delete consumers.** Until then, revoking credentials in CHOSEN is immediate, but the consumer has to be removed in the portal by hand. Issuing, token claims and rotation were confirmed against CHOSEN's dev environment on 2026-11-26; see [api-gateway/README.md](api-gateway/README.md#client-credentials-check-2026-11-26).
 
 ## Design

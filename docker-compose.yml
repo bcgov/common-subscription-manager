@@ -53,11 +53,12 @@ services:
       migrations:
         condition: service_started
     entrypoint: sh -c "npm i && npm run start:dev"
+    # The backend's own settings come from .env (copy .env.example to start). Only the
+    # wiring between these containers stays here; values here override .env.
+    env_file: [.env]
     environment:
       <<: *postgres-vars
       NODE_ENV: development
-      KEYCLOAK_ISSUER: https://dev.loginproxy.gov.bc.ca/auth/realms/standard
-      KEYCLOAK_CLIENT_ID: chosen-6820
     image: *node-image
     ports: ["3001:3000"]
     healthcheck:
