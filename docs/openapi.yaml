@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Common Subscription Manager (CSM) API
+  title: Common Hosted Subscription for Event Notifications (CHOSEN) API
   version: 0.1.0-draft
   summary: Manage subscribers, consent and opt-outs for notifications sent through Notify.
   description: |
@@ -12,11 +12,11 @@ info:
     |---|---|---|
     | A tenant's backend (e.g. a line-of-business app) | `tenantAuth` | Topics, subscriptions, contacts, suppressions, history |
     | Notify | `notifyAuth`; webhooks also need `webhookSignature` | Recipient lookup, inbound SMS, delivery events |
-    | The public, through links CSM sends | A token in the path | Confirm, unsubscribe, manage subscriptions |
-    | CSM operators | `adminAuth` | Tenants |
+    | The public, through links CHOSEN sends | A token in the path | Confirm, unsubscribe, manage subscriptions |
+    | CHOSEN operators | `adminAuth` | Tenants |
 
-    Every caller except the public reaches CSM through the Kong API gateway. Kong checks the
-    API key and applies rate limits, then CSM maps the credential to a tenant, or to Notify.
+    Every caller except the public reaches CHOSEN through the Kong API gateway. Kong checks the
+    API key and applies rate limits, then CHOSEN maps the credential to a tenant, or to Notify.
     Public links are served from a separate, rate-limited hostname.
 
     **Conventions**
@@ -29,7 +29,7 @@ info:
 
     **MCP**
 
-    Operations marked `x-mcp-tool` are also exposed as tools by CSM's MCP layer, under that name. The REST operation is the source of truth for parameters and results.
+    Operations marked `x-mcp-tool` are also exposed as tools by CHOSEN's MCP layer, under that name. The REST operation is the source of truth for parameters and results.
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
@@ -53,9 +53,9 @@ tags:
   - name: Inbound
     description: Webhooks from Notify for inbound SMS and delivery events.
   - name: Public
-    description: Called by CSM's hosted pages and by mail clients. Authorised by the token in the link.
+    description: Called by CHOSEN's hosted pages and by mail clients. Authorised by the token in the link.
   - name: Admin
-    description: CSM operators.
+    description: CHOSEN operators.
 
 security:
   - tenantAuth: []
@@ -94,7 +94,7 @@ paths:
       summary: Create a topic
       description: |
         Creates a topic with its channels and filter fields.
-        Each channel's `smsKeyword` must be unique across CSM and must not be a system keyword
+        Each channel's `smsKeyword` must be unique across CHOSEN and must not be a system keyword
         (`STOP`, `START`, `HELP`, `INFO`, `YES`) or a provider's reserved opt-out word.
       requestBody:
         required: true
@@ -330,7 +330,7 @@ paths:
         Finds or creates the contact for the address, then the subscription.
 
         - If the topic's channel requires confirmation (double opt-in), the subscription is `PENDING` and
-          CSM sends a confirmation message through Notify. By email, the person confirms with the
+          CHOSEN sends a confirmation message through Notify. By email, the person confirms with the
           link. By SMS, they reply `YES` (or `<keyword> YES`), or use the link if the message has
           one. Otherwise the subscription is `ACTIVE` straight away.
         - If the address already has an `ACTIVE` or `PENDING` subscription to the topic, nothing
@@ -777,15 +777,15 @@ paths:
         - notifyAuth: []
           webhookSignature: []
       description: |
-        Notify receives the text from the provider and forwards it here. CSM handles:
+        Notify receives the text from the provider and forwards it here. CHOSEN handles:
 
-        | Text | What CSM does |
+        | Text | What CHOSEN does |
         |---|---|
         | `STOP` (and the provider's other opt-out words) | Suppresses `from` for `to`, for every tenant. The provider has already blocked the number and sent its own reply. |
         | `START` | Lifts that suppression. Subscriptions resume as they were. |
         | `<keyword> OFF`, e.g. `ROADS OFF` | Unsubscribes `from` from that topic, and replies through Notify. |
         | `<keyword> YES`, e.g. `ROADS YES` | Confirms `from`'s pending subscription to that topic. |
-        | `YES` | Confirms `from`'s pending subscription whose confirmation was sent from `to`. If there are several, nothing is confirmed and CSM replies asking for `<keyword> YES`. |
+        | `YES` | Confirms `from`'s pending subscription whose confirmation was sent from `to`. If there are several, nothing is confirmed and CHOSEN replies asking for `<keyword> YES`. |
         | `HELP`, `INFO` | Replies through Notify with general help and a link to manage subscriptions. |
         | Anything else | Records it as `UNRECOGNISED`; no reply. |
 
@@ -813,11 +813,11 @@ paths:
         - notifyAuth: []
           webhookSignature: []
       description: |
-        | `type` | What CSM does |
+        | `type` | What CHOSEN does |
         |---|---|
         | `EMAIL_HARD_BOUNCE` | Suppresses the address for every tenant. |
         | `EMAIL_COMPLAINT` | Suppresses the address for `tenantId` only. |
-        | `SMS_OPTED_OUT` | The provider refused to send because the number had opted out (e.g. Twilio error 21610). Suppresses it for `sender`, in case CSM missed the `STOP`. |
+        | `SMS_OPTED_OUT` | The provider refused to send because the number had opted out (e.g. Twilio error 21610). Suppresses it for `sender`, in case CHOSEN missed the `STOP`. |
 
         Idempotent on `eventId`.
       requestBody:
@@ -924,7 +924,7 @@ paths:
       operationId: requestManageLink
       summary: Send a sign-in link to manage subscriptions
       description: |
-        If the address belongs to a contact of the topic's tenant, CSM sends it a sign-in link.
+        If the address belongs to a contact of the topic's tenant, CHOSEN sends it a sign-in link.
         The response is the same either way, so it can't be used to find out who is subscribed.
       security: []
       requestBody:
@@ -1106,7 +1106,7 @@ components:
       name: X-API-KEY
       description: |
         A tenant's API key, issued through the API Services Portal the same way as for
-        Notify's API. Kong checks it; CSM maps the credential to a tenant, and every call is
+        Notify's API. Kong checks it; CHOSEN maps the credential to a tenant, and every call is
         limited to that tenant's data.
     notifyAuth:
       type: apiKey
@@ -1121,13 +1121,13 @@ components:
       name: X-Notify-Signature
       description: |
         HMAC signature on the body of a webhook from Notify, made with the secret shared when
-        CSM's system-level webhook was registered. Required together with `notifyAuth`. The
+        CHOSEN's system-level webhook was registered. Required together with `notifyAuth`. The
         exact header and algorithm follow Notify's webhook delivery.
     adminAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Keycloak access token for a CSM operator.
+      description: Keycloak access token for a CHOSEN operator.
 
   parameters:
     TopicKey:
@@ -1305,7 +1305,7 @@ components:
                   type: string
                   maxLength: 5000
                   description: |
-                    Email: must include `((confirmUrl))`, where CSM inserts the link.
+                    Email: must include `((confirmUrl))`, where CHOSEN inserts the link.
                     SMS: must tell the person to reply `YES`, or `<keyword> YES`;
                     `((confirmUrl))` is optional.
           additionalProperties: false
@@ -1326,7 +1326,7 @@ components:
         smsKeyword:
           type: [string, 'null']
           pattern: '^[A-Z0-9]{2,10}$'
-          description: SMS only. Unique across CSM. A subscriber texts `<keyword> YES` to confirm a pending subscription to this topic, and `<keyword> OFF` to unsubscribe from it.
+          description: SMS only. Unique across CHOSEN. A subscriber texts `<keyword> YES` to confirm a pending subscription to this topic, and `<keyword> OFF` to unsubscribe from it.
           examples: [ROADS]
     TopicChannel:
       allOf:
@@ -1354,7 +1354,7 @@ components:
         redirectUrl:
           type: [string, 'null']
           format: uri
-          description: Where the hosted pages send the person after they confirm or unsubscribe. If empty, CSM shows its own page.
+          description: Where the hosted pages send the person after they confirm or unsubscribe. If empty, CHOSEN shows its own page.
         channels:
           type: array
           minItems: 1
@@ -1490,7 +1490,7 @@ components:
         channel: { $ref: '#/components/schemas/Channel' }
         address:
           $ref: '#/components/schemas/Address'
-          description: Shown from the tenant's matching contact; CSM stores only a hash.
+          description: Shown from the tenant's matching contact; CHOSEN stores only a hash.
         sender: { type: [string, 'null'] }
         scope:
           type: string
@@ -1632,7 +1632,7 @@ components:
             `NOTHING_TO_CONFIRM`: a `YES` matched no pending subscription, e.g. it had expired.
         replySent:
           type: boolean
-          description: CSM sent a reply through Notify.
+          description: CHOSEN sent a reply through Notify.
     DeliveryEvent:
       type: object
       required: [eventId, type, channel, address, occurredAt]

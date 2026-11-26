@@ -1,4 +1,4 @@
-# AGENTS.md: Common Subscription Manager (CSM)
+# AGENTS.md: Common Hosted Subscription for Event Notifications (CHOSEN)
 
 Repository facts and conventions for automated coding assistants and the developers reviewing their output. Teams may edit or remove this file.
 
@@ -6,20 +6,20 @@ Repository facts and conventions for automated coding assistants and the develop
 
 ## What this is
 
-CSM is a headless, multi-tenant BC Government common service. It manages who is subscribed to which topics, on which channel, and whether they can be contacted. It sends through [Notify](https://github.com/bcgov/common-notify) but is not part of it. The two are built by the same team on the same stack, so follow Notify's patterns where this file doesn't say otherwise.
+CHOSEN is a headless, multi-tenant BC Government common service. It manages who is subscribed to which topics, on which channel, and whether they can be contacted. It sends through [Notify](https://github.com/bcgov/common-notify) but is not part of it. The two are built by the same team on the same stack, so follow Notify's patterns where this file doesn't say otherwise.
 
 | Caller | What it does |
 |---|---|
 | Tenant apps (server-to-server) | Manage topics, subscribe and unsubscribe people, read history |
 | Notify | Queries recipients when sending; forwards inbound SMS and delivery events as webhooks |
-| The public, through links CSM sends | Confirm, unsubscribe, manage subscriptions on CSM's hosted pages |
+| The public, through links CHOSEN sends | Confirm, unsubscribe, manage subscriptions on CHOSEN's hosted pages |
 
 Design docs, which are the source of truth until code exists:
 - [docs/data-model.md](docs/data-model.md): data model and the decisions behind it
 - [docs/openapi.yaml](docs/openapi.yaml): API contract (OpenAPI 3.1)
 - [README.md](README.md): opt-out and unsubscribe flows
 
-Status: design phase. The backend still holds the quickstart template's sample `users` module and Flyway schema; both get replaced by the CSM model.
+Status: design phase. The backend still holds the quickstart template's sample `users` module and Flyway schema; both get replaced by the CHOSEN model.
 
 ## Layout
 - `backend/` (NestJS, TypeORM), `frontend/` (Vite, React, TanStack Router, Caddy), `migrations/` (Flyway SQL in `migrations/sql/`)
@@ -55,7 +55,7 @@ TEST and PROD run the backend as several autoscaled replicas (`HorizontalPodAuto
 
 ## Data layer
 
-- **Postgres schema:** CSM objects go in the `csm` schema. The template's `users` schema is to be removed.
+- **Postgres schema:** CHOSEN objects go in the `chosen` schema. The template's `users` schema is to be removed.
 - **Flyway owns the schema.** TypeORM runs with `synchronize: false`; never let it create or alter tables.
 - **Migrations:** `migrations/sql/V#.#.#__snake_case_description.sql`, following the existing files.
   - **Forward-only.** Never edit a migration that has been applied anywhere; add a new one.
@@ -67,7 +67,7 @@ TEST and PROD run the backend as several autoscaled replicas (`HorizontalPodAuto
 
 ## Personal data
 
-CSM's whole purpose is holding citizens' contact details, so these rules apply everywhere:
+CHOSEN's whole purpose is holding citizens' contact details, so these rules apply everywhere:
 
 - **Encrypted columns:** addresses, external subject IDs and inbound message bodies are encrypted in the application (AES-256-GCM), with an HMAC-SHA256 lookup hash of the normalised value. See [docs/data-model.md#encryption](docs/data-model.md#encryption). Query by the hash; never add a plain-text copy, a `LIKE` search on addresses, or an index on decrypted values.
 - **Normalise before hashing:** E.164 for phone numbers, trimmed and lower-cased for email. A hash of an un-normalised value silently fails to match.
@@ -78,7 +78,7 @@ CSM's whole purpose is holding citizens' contact details, so these rules apply e
 ## API
 
 - **[docs/openapi.yaml](docs/openapi.yaml) is the contract.** Implement against it, and change it in the same PR as any behaviour change. Swagger decorators in the code must describe the same contract.
-- **Every endpoint is exposed.** Tenant apps, Notify, mail clients and the public all call CSM from outside this repo, so a renamed field, a tightened validation rule or a changed status code breaks someone. Prefer additive changes, and never repurpose an existing field.
+- **Every endpoint is exposed.** Tenant apps, Notify, mail clients and the public all call CHOSEN from outside this repo, so a renamed field, a tightened validation rule or a changed status code breaks someone. Prefer additive changes, and never repurpose an existing field.
 - **Request bodies are DTO classes with class-validator decorators**, validated by a global `ValidationPipe` with `whitelist` and `forbidNonWhitelisted`, so an undeclared property is a `400`. This isn't wired up yet; add it with the first real endpoint.
 - **No endpoint is unprotected by omission.** Adopt Notify's pattern: a global guard that rejects any route that is neither `@Public()` nor explicitly guarded. Only `/public/*`, health and metrics are public.
 - **Public endpoints:** a `GET` never changes state, because mail scanners open links. Responses must not reveal whether an address is subscribed.
@@ -88,12 +88,12 @@ CSM's whole purpose is holding citizens' contact details, so these rules apply e
 ### Integration and auth
 
 The README's "Integration and authentication" section explains the design. These are the rules the code must follow:
-- **Tenant apps and Notify call through Kong**, using API keys from the API Services Portal. Kong checks the key, then forwards the credential identity; CSM maps that identity to a tenant, or to Notify. Never take a tenant ID from the request body or a query parameter for tenant endpoints.
+- **Tenant apps and Notify call through Kong**, using API keys from the API Services Portal. Kong checks the key, then forwards the credential identity; CHOSEN maps that identity to a tenant, or to Notify. Never take a tenant ID from the request body or a query parameter for tenant endpoints.
 - **Notify has its own credential.** It is the only caller allowed to name a tenant in a request (`/recipients/query`). A tenant key must never reach Notify-only endpoints, and Notify's key must never reach tenant endpoints.
 - **Webhooks (`/inbound/*`) need both** the Notify credential and a valid HMAC signature over the raw body. Compare signatures in constant time, and reject the request before parsing the body if the signature is wrong.
 - **Trust Kong's identity headers only because nothing else can reach the backend.** The network policy admits only Kong and the public-links route. Don't loosen it, and don't add another way to reach the backend.
 - **`/public/*` takes no API key.** The signed token in the link is the permission, and the route is rate-limited.
-- **CSM calls Notify as an ordinary Notify client**, with its own Notify API key held in a secret.
+- **CHOSEN calls Notify as an ordinary Notify client**, with its own Notify API key held in a secret.
 - **Operators** sign in with Keycloak (`adminAuth`). In the MVP, mapping keys to tenants is an admin API task.
 
 ### Impact on existing callers: always state it
