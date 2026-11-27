@@ -1655,7 +1655,7 @@ components:
     ConsentEvidence:
       type: object
       description: How the person agreed. Stored as consent evidence.
-      required: [method, text]
+      required: [method]
       properties:
         method:
           type: string
@@ -1668,7 +1668,12 @@ components:
         text:
           type: string
           maxLength: 5000
-          description: The wording the person agreed to.
+          description: |
+            Optional. The consent wording the person saw when they agreed, exactly as it was
+            shown, with any placeholders filled in. Send the same string the app displays.
+            Topic and filters are recorded separately, so this only needs what they don't
+            say, such as how often messages come and how to cancel. Without it, the consent
+            event records how and when the person subscribed, but not what they were told.
         capturedAt:
           type: string
           format: date-time

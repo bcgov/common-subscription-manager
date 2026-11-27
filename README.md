@@ -40,7 +40,7 @@ It also handles the rules that come with them: confirming addresses, SMS opt-out
    - its channels (email, SMS), each with its own double opt-in setting and confirmation message;
    - its SMS keyword, such as `ROADS`;
    - optionally, its **filter fields**: the ways people can narrow the topic, such as `region` or `highway`. Fields can be added, changed or removed later. A field added later matches everything for existing subscribers until they choose values.
-2. **The person subscribes in the LOB app.** The app calls CHOSEN's `subscribe` with the channel, the email address or phone number, the chosen filters, and the consent wording the person was shown.
+2. **The person subscribes in the LOB app.** The app calls CHOSEN's `subscribe` with the channel, the email address or phone number, the chosen filters, how the person subscribed and, optionally, the consent wording they were shown.
 3. **CHOSEN records it.** It finds or creates the contact (the address is encrypted, with a lookup hash), creates the subscription, and saves a consent event as proof.
 4. **CHOSEN confirms the address, if the channel requires it (double opt-in).** Each of a topic's channels has its own `confirmationRequired` flag, so a topic can, for example, confirm SMS subscriptions but not email ones. When it's on, the subscription stays `PENDING` and CHOSEN sends a confirmation message through Notify:
    - **Email:** the person clicks the link and presses Confirm on CHOSEN's hosted page.

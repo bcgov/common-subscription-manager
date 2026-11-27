@@ -136,7 +136,7 @@ erDiagram
         uuid subscription_id FK
         varchar action FK "OPT_IN CONFIRM OPT_OUT ..."
         varchar method FK "API LINK KEYWORD STOP ..."
-        text consent_text
+        text consent_text "null if not supplied"
         varchar actor
         inet source_ip
         uuid inbound_message_id FK
@@ -240,7 +240,7 @@ erDiagram
 - `START` lifts a STOP by setting `lifted_at`; rows are never deleted.
 - Tenants can see that one of their own contacts is suppressed, but not why, or for which other services.
 
-**`consent_event`**: append-only proof of every change to a subscription, including filter changes (`FILTERS_CHANGED`). It records who did it, how (API, link, keyword, STOP, admin), what wording they were shown, when, and from which IP address. This is what we produce if anyone asks for evidence of consent.
+**`consent_event`**: append-only proof of every change to a subscription, including filter changes (`FILTERS_CHANGED`). It records who did it, how (API, link, keyword, STOP, admin), what wording they were shown, when, and from which IP address. The wording is optional on `subscribe`, so `consent_text` is null when the LOB app doesn't send it; for confirmations, it's the message CHOSEN sent. This is what we produce if anyone asks for evidence of consent.
 
 **`inbound_message`**: each inbound text forwarded by Notify.
 - `notify_event_id` is unique, so a webhook delivered twice is processed only once.
