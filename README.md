@@ -3,7 +3,7 @@
 A headless, multi-tenant service that manages who is subscribed to which topics, on which channel, and whether they can be contacted. It sends through [Notify](https://github.com/bcgov/common-notify) but is not part of it.
 
 It does three things for any line-of-business (LOB) app:
-1. **Subscribe** people to a topic, with their channel, address and filters, and keep proof that they agreed.
+1. **Subscribe** people to a topic, with their channel, email address or phone number, and filters, and keep proof that they agreed.
 2. **Unsubscribe** them from one topic, or stop everything, in whatever way they choose.
 3. **Return the recipients** for a topic when an event happens, leaving out anyone who has opted out.
 
@@ -18,7 +18,8 @@ It also handles the rules that come with them: confirming addresses, SMS opt-out
 | **Topic** | Something people can subscribe to, such as "road closures". Each tenant creates its own. |
 | **Channel** | How a message is delivered: email or SMS. |
 | **Filter** | A choice that narrows a topic, such as `region = Victoria`. A person can pick several values. A filter they leave empty matches everything. |
-| **Contact** | One verified email address or phone number, belonging to one tenant. |
+| **Address** | Where messages are sent: an email address or a mobile phone number, depending on the channel. Never a postal address. |
+| **Contact** | One verified address, belonging to one tenant. |
 | **Subscription** | One contact signed up to one topic, with their filters. |
 | **Double opt-in** | The person must confirm before messages start: by clicking a link (email) or replying `YES` (SMS). It's switched on or off for each channel of a topic, so a topic can confirm SMS but not email. |
 | **Pending** | A subscription waiting for confirmation. If it isn't confirmed in time, it expires. |
@@ -33,13 +34,13 @@ It also handles the rules that come with them: confirming addresses, SMS opt-out
 
 ## How subscribing works
 
-**The LOB app owns the subscribe experience; CHOSEN stores and enforces the result.** Only the LOB app knows what its events mean, which filters make sense (a region, a threshold, etc), and who its user is. It might take the address from the person's sign-in, such as BC Services Card, or ask for it. CHOSEN has no subscribe screen of its own.
+**The LOB app owns the subscribe experience; CHOSEN stores and enforces the result.** Only the LOB app knows what its events mean, which filters make sense (a region, a threshold, etc), and who its user is. The app always supplies the email address or phone number when it calls `subscribe`; where it gets it is up to the app, such as from the person's sign-in (BC Services Card, for example) or by asking them. CHOSEN has no subscribe screen of its own.
 
 1. **Set up the topic:** the LOB app, or a CHOSEN operator, creates the topic in CHOSEN with:
    - its channels (email, SMS), each with its own double opt-in setting and confirmation message;
    - its SMS keyword, such as `ROADS`;
    - optionally, its **filter fields**: the ways people can narrow the topic, such as `region` or `highway`. Fields can be added, changed or removed later. A field added later matches everything for existing subscribers until they choose values.
-2. **The person subscribes in the LOB app.** The app calls CHOSEN's `subscribe` with the channel, the address, the chosen filters, and the consent wording the person was shown.
+2. **The person subscribes in the LOB app.** The app calls CHOSEN's `subscribe` with the channel, the email address or phone number, the chosen filters, and the consent wording the person was shown.
 3. **CHOSEN records it.** It finds or creates the contact (the address is encrypted, with a lookup hash), creates the subscription, and saves a consent event as proof.
 4. **CHOSEN confirms the address, if the channel requires it (double opt-in).** Each of a topic's channels has its own `confirmationRequired` flag, so a topic can, for example, confirm SMS subscriptions but not email ones. When it's on, the subscription stays `PENDING` and CHOSEN sends a confirmation message through Notify:
    - **Email:** the person clicks the link and presses Confirm on CHOSEN's hosted page.
