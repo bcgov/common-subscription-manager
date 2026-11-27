@@ -4,7 +4,7 @@ info:
   version: 0.1.0-draft
   summary: Manage subscribers, consent and opt-outs for notifications sent through Notify.
   description: |
-    Draft for review. See `docs/data-model.md` for the decisions behind this API.
+    Draft for review.
 
     **Callers**
 
@@ -48,7 +48,7 @@ tags:
   - name: Subscriptions
     description: Subscribe, change filters and unsubscribe.
   - name: Contacts
-    description: A tenant's verified addresses.
+    description: 'The people subscribed to a tenant''s topics: each one an email address or phone number, with all of its subscriptions.'
   - name: Suppressions
     description: Addresses that must not be sent to.
   - name: History
@@ -60,7 +60,7 @@ tags:
   - name: Public
     description: Called by CHOSEN's hosted pages and by mail clients. Authorised by the token in the link.
   - name: Credentials
-    description: Client credentials a tenant's services use to call CHOSEN. Managed by tenant staff in CHOSEN's UI.
+    description: 'For tenant staff in CHOSEN''s UI: create and manage the client ID and secret their apps use to call CHOSEN. CHOSEN stores the client ID, never the secret.'
   - name: Admin
     description: CHOSEN operators.
 
