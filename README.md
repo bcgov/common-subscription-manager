@@ -33,7 +33,7 @@ It also handles the rules that come with them: confirming addresses, SMS opt-out
 
 ## How subscribing works
 
-**The LOB app owns the subscribe experience; CHOSEN stores and enforces the result.** Only the LOB app knows what its events mean, which filters make sense (a region, a threshold, a stock symbol), and who its user is. It might take the address from the person's sign-in, such as BC Services Card, or ask for it. CHOSEN has no subscribe screen of its own.
+**The LOB app owns the subscribe experience; CHOSEN stores and enforces the result.** Only the LOB app knows what its events mean, which filters make sense (a region, a threshold, etc), and who its user is. It might take the address from the person's sign-in, such as BC Services Card, or ask for it. CHOSEN has no subscribe screen of its own.
 
 1. **Set up the topic:** the LOB app, or a CHOSEN operator, creates the topic in CHOSEN with:
    - its channels (email, SMS), each with its own double opt-in setting and confirmation message;
