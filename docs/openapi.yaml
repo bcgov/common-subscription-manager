@@ -78,6 +78,7 @@ paths:
       parameters:
         - name: status
           in: query
+          description: Only topics with this status. Leave it out for all.
           schema: { $ref: '#/components/schemas/TopicStatus' }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
@@ -86,6 +87,8 @@ paths:
           description: A page of topics.
           content:
             application/json:
+              examples:
+                topicPage: { $ref: '#/components/examples/TopicPage' }
               schema:
                 allOf:
                   - $ref: '#/components/schemas/Page'
@@ -107,12 +110,16 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              topicCreate: { $ref: '#/components/examples/TopicCreate' }
             schema: { $ref: '#/components/schemas/TopicCreate' }
       responses:
         '201':
           description: The topic was created.
           content:
             application/json:
+              examples:
+                topic: { $ref: '#/components/examples/Topic' }
               schema: { $ref: '#/components/schemas/Topic' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -121,6 +128,11 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: about:blank
+                title: Conflict
+                status: 409
+                detail: 'The SMS keyword ROADS is already used by another topic.'
 
   /topics/{topicKey}:
     parameters:
@@ -135,6 +147,8 @@ paths:
           description: The topic.
           content:
             application/json:
+              examples:
+                topic: { $ref: '#/components/examples/Topic' }
               schema: { $ref: '#/components/schemas/Topic' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -150,12 +164,17 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              topicUpdate: { $ref: '#/components/examples/TopicUpdate' }
+              topicArchive: { $ref: '#/components/examples/TopicArchive' }
             schema: { $ref: '#/components/schemas/TopicUpdate' }
       responses:
         '200':
           description: The updated topic.
           content:
             application/json:
+              examples:
+                topic: { $ref: '#/components/examples/Topic' }
               schema: { $ref: '#/components/schemas/Topic' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -167,7 +186,9 @@ paths:
       - name: channel
         in: path
         required: true
+        description: The channel to add, replace or remove.
         schema: { $ref: '#/components/schemas/Channel' }
+        example: SMS
     put:
       tags: [Topics]
       operationId: putTopicChannel
@@ -176,12 +197,17 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              topicChannelSms: { $ref: '#/components/examples/TopicChannelSms' }
+              topicChannelEmail: { $ref: '#/components/examples/TopicChannelEmail' }
             schema: { $ref: '#/components/schemas/TopicChannelSettings' }
       responses:
         '200':
           description: The updated topic.
           content:
             application/json:
+              examples:
+                topic: { $ref: '#/components/examples/Topic' }
               schema: { $ref: '#/components/schemas/Topic' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -191,6 +217,11 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: about:blank
+                title: Conflict
+                status: 409
+                detail: 'The SMS keyword ROADS is already used by another topic.'
     delete:
       tags: [Topics]
       operationId: deleteTopicChannel
@@ -205,6 +236,11 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: about:blank
+                title: Conflict
+                status: 409
+                detail: '12 active or pending subscriptions still use the SMS channel.'
 
   /topics/{topicKey}/filter-fields:
     parameters:
@@ -220,12 +256,16 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              filterFieldCreate: { $ref: '#/components/examples/FilterFieldCreate' }
             schema: { $ref: '#/components/schemas/FilterField' }
       responses:
         '201':
           description: The updated topic.
           content:
             application/json:
+              examples:
+                topic: { $ref: '#/components/examples/Topic' }
               schema: { $ref: '#/components/schemas/Topic' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -235,6 +275,11 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: about:blank
+                title: Conflict
+                status: 409
+                detail: 'The topic already has a filter field named highway.'
 
   /topics/{topicKey}/filter-fields/{fieldName}:
     parameters:
@@ -242,7 +287,9 @@ paths:
       - name: fieldName
         in: path
         required: true
+        description: The filter field's `name`.
         schema: { $ref: '#/components/schemas/FilterFieldName' }
+        example: region
     patch:
       tags: [Topics]
       operationId: updateFilterField
@@ -252,6 +299,8 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              filterFieldUpdate: { $ref: '#/components/examples/FilterFieldUpdate' }
             schema:
               type: object
               properties:
@@ -264,6 +313,8 @@ paths:
           description: The updated topic.
           content:
             application/json:
+              examples:
+                topic: { $ref: '#/components/examples/Topic' }
               schema: { $ref: '#/components/schemas/Topic' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -273,6 +324,11 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: about:blank
+                title: Conflict
+                status: 409
+                detail: "Subscriptions still use the value nanaimo, so it can't be removed."
     delete:
       tags: [Topics]
       operationId: deleteFilterField
@@ -287,6 +343,11 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: about:blank
+                title: Conflict
+                status: 409
+                detail: '34 subscriptions still have values for highway.'
 
   # ---------------------------------------------------------- Subscriptions
   /topics/{topicKey}/subscriptions:
@@ -299,18 +360,22 @@ paths:
       parameters:
         - name: status
           in: query
+          description: Only subscriptions with this status. Leave it out for all.
           schema: { $ref: '#/components/schemas/SubscriptionStatus' }
         - name: channel
           in: query
+          description: Only this channel. Leave it out for both.
           schema: { $ref: '#/components/schemas/Channel' }
         - name: address
           in: query
-          description: Exact match only; addresses are stored encrypted.
+          description: Only this email address or phone number. Exact match only; addresses are stored encrypted.
           schema: { type: string }
+          example: '+12505550123'
         - name: externalSubjectId
           in: query
-          description: Exact match only.
+          description: Only subscriptions with this tenant ID for the person. Exact match only.
           schema: { type: string }
+          example: 4f7a2c9e1b3d5f6a8c0e2b4d6f8a1c3e
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -318,6 +383,8 @@ paths:
           description: A page of subscriptions.
           content:
             application/json:
+              examples:
+                subscriptionPage: { $ref: '#/components/examples/SubscriptionPage' }
               schema:
                 allOf:
                   - $ref: '#/components/schemas/Page'
@@ -351,17 +418,24 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              subscribeSms: { $ref: '#/components/examples/SubscribeSms' }
+              subscribeEmailAssisted: { $ref: '#/components/examples/SubscribeEmailAssisted' }
             schema: { $ref: '#/components/schemas/SubscriptionCreate' }
       responses:
         '200':
           description: Already subscribed; nothing changed.
           content:
             application/json:
+              examples:
+                subscriptionActive: { $ref: '#/components/examples/SubscriptionActive' }
               schema: { $ref: '#/components/schemas/Subscription' }
         '201':
           description: Subscribed, or subscribed again.
           content:
             application/json:
+              examples:
+                subscriptionPending: { $ref: '#/components/examples/SubscriptionPending' }
               schema: { $ref: '#/components/schemas/Subscription' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -371,6 +445,11 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: about:blank
+                title: Unprocessable Content
+                status: 422
+                detail: "squamish isn't an allowed value for region."
 
   /subscriptions/{subscriptionId}:
     parameters:
@@ -384,6 +463,8 @@ paths:
           description: The subscription.
           content:
             application/json:
+              examples:
+                subscriptionActive: { $ref: '#/components/examples/SubscriptionActive' }
               schema: { $ref: '#/components/schemas/Subscription' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -400,12 +481,16 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              subscriptionUpdate: { $ref: '#/components/examples/SubscriptionUpdate' }
             schema: { $ref: '#/components/schemas/SubscriptionUpdate' }
       responses:
         '200':
           description: The updated subscription.
           content:
             application/json:
+              examples:
+                subscriptionUpdated: { $ref: '#/components/examples/SubscriptionUpdated' }
               schema: { $ref: '#/components/schemas/Subscription' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -415,11 +500,21 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: about:blank
+                title: Conflict
+                status: 409
+                detail: "The subscription is unsubscribed, so its filters can't be changed."
         '422':
           description: The filters don't fit the topic's filter fields.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: about:blank
+                title: Unprocessable Content
+                status: 422
+                detail: "squamish isn't an allowed value for region."
 
   /subscriptions/{subscriptionId}/unsubscribe:
     parameters:
@@ -435,6 +530,8 @@ paths:
       requestBody:
         content:
           application/json:
+            examples:
+              unsubscribeRequest: { $ref: '#/components/examples/UnsubscribeRequest' }
             schema:
               type: object
               properties:
@@ -448,6 +545,8 @@ paths:
           description: The subscription, now unsubscribed.
           content:
             application/json:
+              examples:
+                subscriptionUnsubscribed: { $ref: '#/components/examples/SubscriptionUnsubscribed' }
               schema: { $ref: '#/components/schemas/Subscription' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -469,6 +568,11 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: about:blank
+                title: Conflict
+                status: 409
+                detail: 'The subscription is already active.'
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
   # --------------------------------------------------------------- Contacts
@@ -481,18 +585,25 @@ paths:
       parameters:
         - name: channel
           in: query
+          description: Only this channel. Leave it out for both.
           schema: { $ref: '#/components/schemas/Channel' }
         - name: address
           in: query
+          description: The email address or phone number to look for. Exact match only.
           schema: { type: string }
+          example: '+12505550123'
         - name: externalSubjectId
           in: query
+          description: The tenant's own ID for the person. Exact match only.
           schema: { type: string }
+          example: 4f7a2c9e1b3d5f6a8c0e2b4d6f8a1c3e
       responses:
         '200':
           description: Matching contacts; usually one or none.
           content:
             application/json:
+              examples:
+                contactList: { $ref: '#/components/examples/ContactList' }
               schema:
                 type: object
                 required: [items]
@@ -515,6 +626,8 @@ paths:
           description: The contact.
           content:
             application/json:
+              examples:
+                contactWithSubscriptions: { $ref: '#/components/examples/ContactWithSubscriptions' }
               schema: { $ref: '#/components/schemas/ContactWithSubscriptions' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -535,6 +648,8 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              changeAddress: { $ref: '#/components/examples/ChangeAddress' }
             schema:
               type: object
               required: [address]
@@ -546,6 +661,8 @@ paths:
           description: Verification sent to the new address.
           content:
             application/json:
+              examples:
+                contactUnverified: { $ref: '#/components/examples/ContactUnverified' }
               schema: { $ref: '#/components/schemas/Contact' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -555,6 +672,11 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: about:blank
+                title: Conflict
+                status: 409
+                detail: 'Another contact already has the address +12505550188.'
 
   /contacts/{contactId}/unsubscribe-all:
     parameters:
@@ -566,6 +688,8 @@ paths:
       requestBody:
         content:
           application/json:
+            examples:
+              unsubscribeAllRequest: { $ref: '#/components/examples/UnsubscribeAllRequest' }
             schema:
               type: object
               properties:
@@ -576,6 +700,8 @@ paths:
           description: The contact and its subscriptions, now unsubscribed.
           content:
             application/json:
+              examples:
+                contactUnsubscribedFromAll: { $ref: '#/components/examples/ContactUnsubscribedFromAll' }
               schema: { $ref: '#/components/schemas/ContactWithSubscriptions' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -592,11 +718,13 @@ paths:
       parameters:
         - name: channel
           in: query
+          description: Only this channel. Leave it out for both.
           schema: { $ref: '#/components/schemas/Channel' }
         - name: address
           in: query
-          description: Exact match only.
+          description: Only suppressions of this email address or phone number. Exact match only.
           schema: { type: string }
+          example: person@example.com
         - name: active
           in: query
           description: Only suppressions that haven't been lifted. Defaults to `true`.
@@ -608,6 +736,8 @@ paths:
           description: A page of suppressions.
           content:
             application/json:
+              examples:
+                suppressionPage: { $ref: '#/components/examples/SuppressionPage' }
               schema:
                 allOf:
                   - $ref: '#/components/schemas/Page'
@@ -625,6 +755,8 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              suppressionCreate: { $ref: '#/components/examples/SuppressionCreate' }
             schema:
               type: object
               required: [channel, address]
@@ -641,6 +773,8 @@ paths:
           description: The suppression.
           content:
             application/json:
+              examples:
+                suppression: { $ref: '#/components/examples/Suppression' }
               schema: { $ref: '#/components/schemas/Suppression' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -650,7 +784,9 @@ paths:
       - name: suppressionId
         in: path
         required: true
+        description: The suppression's ID, from `listSuppressions`.
         schema: { type: string, format: uuid }
+        example: 5a3c1e9f-7b2d-4d6e-8f40-2b4d6f8a0c17
     post:
       tags: [Suppressions]
       operationId: liftSuppression
@@ -663,6 +799,8 @@ paths:
           description: The suppression, now lifted.
           content:
             application/json:
+              examples:
+                suppressionLifted: { $ref: '#/components/examples/SuppressionLifted' }
               schema: { $ref: '#/components/schemas/Suppression' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403':
@@ -670,6 +808,11 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                detail: 'A shared STOP can only be lifted by the person texting START.'
         '404': { $ref: '#/components/responses/NotFound' }
 
   # ---------------------------------------------------------------- History
@@ -688,6 +831,8 @@ paths:
           description: Consent events, oldest first.
           content:
             application/json:
+              examples:
+                consentEventPage: { $ref: '#/components/examples/ConsentEventPage' }
               schema:
                 allOf:
                   - $ref: '#/components/schemas/Page'
@@ -707,16 +852,23 @@ paths:
       parameters:
         - name: entityType
           in: query
+          description: Only changes to this kind of thing.
           schema: { type: string, enum: [TOPIC, TOPIC_CHANNEL, FILTER_FIELD, SUPPRESSION, TENANT] }
         - name: entityId
           in: query
+          description: Only changes to the thing with this ID, such as one topic.
           schema: { type: string, format: uuid }
+          example: 3f2b8c1e-6d4a-4f7e-9b21-5a8c0d7e4f10
         - name: from
           in: query
+          description: Only changes at or after this time.
           schema: { type: string, format: date-time }
+          example: '2026-11-01T00:00:00Z'
         - name: to
           in: query
+          description: Only changes before this time.
           schema: { type: string, format: date-time }
+          example: '2026-12-01T00:00:00Z'
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -724,6 +876,8 @@ paths:
           description: Audit events, newest first.
           content:
             application/json:
+              examples:
+                auditEventPage: { $ref: '#/components/examples/AuditEventPage' }
               schema:
                 allOf:
                   - $ref: '#/components/schemas/Page'
@@ -758,12 +912,16 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              recipientQuery: { $ref: '#/components/examples/RecipientQuery' }
             schema: { $ref: '#/components/schemas/RecipientQuery' }
       responses:
         '200':
           description: A page of recipients.
           content:
             application/json:
+              examples:
+                recipientPage: { $ref: '#/components/examples/RecipientPage' }
               schema: { $ref: '#/components/schemas/RecipientPage' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -773,6 +931,11 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: about:blank
+                title: Unprocessable Content
+                status: 422
+                detail: "The topic road-closures doesn't have a filter field named district."
 
   # ---------------------------------------------------------------- Inbound
   /inbound/sms:
@@ -801,12 +964,18 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              inboundSmsKeywordOff: { $ref: '#/components/examples/InboundSmsKeywordOff' }
+              inboundSmsStop: { $ref: '#/components/examples/InboundSmsStop' }
             schema: { $ref: '#/components/schemas/InboundSms' }
       responses:
         '200':
           description: The text was processed.
           content:
             application/json:
+              examples:
+                inboundSmsResultKeywordOff: { $ref: '#/components/examples/InboundSmsResultKeywordOff' }
+                inboundSmsResultStop: { $ref: '#/components/examples/InboundSmsResultStop' }
               schema: { $ref: '#/components/schemas/InboundSmsResult' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -831,6 +1000,9 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              deliveryEventHardBounce: { $ref: '#/components/examples/DeliveryEventHardBounce' }
+              deliveryEventComplaint: { $ref: '#/components/examples/DeliveryEventComplaint' }
             schema: { $ref: '#/components/schemas/DeliveryEvent' }
       responses:
         '204': { description: The event was processed. }
@@ -854,6 +1026,8 @@ paths:
           description: What the person is confirming.
           content:
             application/json:
+              examples:
+                publicSummaryPending: { $ref: '#/components/examples/PublicSummaryPending' }
               schema: { $ref: '#/components/schemas/PublicSubscriptionSummary' }
         '404': { $ref: '#/components/responses/InvalidToken' }
         '410': { $ref: '#/components/responses/ExpiredToken' }
@@ -867,6 +1041,8 @@ paths:
           description: The subscription is active.
           content:
             application/json:
+              examples:
+                publicConfirmed: { $ref: '#/components/examples/PublicConfirmed' }
               schema: { $ref: '#/components/schemas/PublicActionResult' }
         '404': { $ref: '#/components/responses/InvalidToken' }
         '410': { $ref: '#/components/responses/ExpiredToken' }
@@ -885,6 +1061,8 @@ paths:
           description: The subscription the link belongs to.
           content:
             application/json:
+              examples:
+                publicSummaryActive: { $ref: '#/components/examples/PublicSummaryActive' }
               schema: { $ref: '#/components/schemas/PublicSubscriptionSummary' }
         '404': { $ref: '#/components/responses/InvalidToken' }
     post:
@@ -900,22 +1078,32 @@ paths:
       requestBody:
         content:
           application/json:
+            example:
+              reason: Too many alerts for areas I don't drive through
             schema:
               type: object
               properties:
-                reason: { type: string, maxLength: 500 }
+                reason:
+                  type: string
+                  maxLength: 500
+                  description: Why the person unsubscribed, if the page asked. Stored with the consent event.
           application/x-www-form-urlencoded:
+            example:
+              List-Unsubscribe: One-Click
             schema:
               type: object
               properties:
                 List-Unsubscribe:
                   type: string
                   const: One-Click
+                  description: Sent by mail clients for one-click unsubscribe (RFC 8058).
       responses:
         '200':
           description: Unsubscribed, or already unsubscribed.
           content:
             application/json:
+              examples:
+                publicUnsubscribed: { $ref: '#/components/examples/PublicUnsubscribed' }
               schema: { $ref: '#/components/schemas/PublicActionResult' }
         '404': { $ref: '#/components/responses/InvalidToken' }
 
@@ -926,6 +1114,7 @@ paths:
         required: true
         description: The topic's ID, which is what the fixed "manage subscriptions" link in a template carries.
         schema: { type: string, format: uuid }
+        example: 3f2b8c1e-6d4a-4f7e-9b21-5a8c0d7e4f10
     post:
       tags: [Public]
       operationId: requestManageLink
@@ -938,6 +1127,8 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              manageLinkRequest: { $ref: '#/components/examples/ManageLinkRequest' }
             schema:
               type: object
               required: [channel, address]
@@ -964,6 +1155,8 @@ paths:
           description: The person's subscriptions, with each topic's filter fields so the page can offer choices.
           content:
             application/json:
+              examples:
+                publicManageView: { $ref: '#/components/examples/PublicManageView' }
               schema: { $ref: '#/components/schemas/PublicManageView' }
         '404': { $ref: '#/components/responses/InvalidToken' }
         '410': { $ref: '#/components/responses/ExpiredToken' }
@@ -981,12 +1174,16 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              publicFiltersUpdate: { $ref: '#/components/examples/PublicFiltersUpdate' }
             schema: { $ref: '#/components/schemas/SubscriptionUpdate' }
       responses:
         '200':
           description: The updated view.
           content:
             application/json:
+              examples:
+                publicManageViewUpdated: { $ref: '#/components/examples/PublicManageViewUpdated' }
               schema: { $ref: '#/components/schemas/PublicManageView' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/InvalidToken' }
@@ -996,6 +1193,11 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: about:blank
+                title: Unprocessable Content
+                status: 422
+                detail: "squamish isn't an allowed value for region."
 
   /public/manage/{token}/subscriptions/{subscriptionId}/unsubscribe:
     parameters:
@@ -1011,6 +1213,8 @@ paths:
           description: The updated view.
           content:
             application/json:
+              examples:
+                publicManageViewUnsubscribed: { $ref: '#/components/examples/PublicManageViewUnsubscribed' }
               schema: { $ref: '#/components/schemas/PublicManageView' }
         '404': { $ref: '#/components/responses/InvalidToken' }
         '410': { $ref: '#/components/responses/ExpiredToken' }
@@ -1028,12 +1232,15 @@ paths:
         - $ref: '#/components/parameters/TenantHeader'
         - name: includeRevoked
           in: query
+          description: Include credentials that have been revoked.
           schema: { type: boolean, default: false }
       responses:
         '200':
           description: The tenant's credentials.
           content:
             application/json:
+              examples:
+                apiClientList: { $ref: '#/components/examples/ApiClientList' }
               schema:
                 type: object
                 required: [items]
@@ -1061,12 +1268,16 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              apiClientCreate: { $ref: '#/components/examples/ApiClientCreate' }
             schema: { $ref: '#/components/schemas/ApiClientCreate' }
       responses:
         '201':
           description: The credentials, including the secret.
           content:
             application/json:
+              examples:
+                issuedApiClient: { $ref: '#/components/examples/IssuedApiClient' }
               schema: { $ref: '#/components/schemas/IssuedApiClient' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -1095,6 +1306,8 @@ paths:
           description: The credentials, including the new secret.
           content:
             application/json:
+              examples:
+                rotatedApiClient: { $ref: '#/components/examples/RotatedApiClient' }
               schema: { $ref: '#/components/schemas/IssuedApiClient' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -1126,6 +1339,8 @@ paths:
           description: The revoked credentials.
           content:
             application/json:
+              examples:
+                revokedApiClient: { $ref: '#/components/examples/RevokedApiClient' }
               schema: { $ref: '#/components/schemas/ApiClient' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -1148,6 +1363,8 @@ paths:
           description: A page of tenants.
           content:
             application/json:
+              examples:
+                tenantPage: { $ref: '#/components/examples/TenantPage' }
               schema:
                 allOf:
                   - $ref: '#/components/schemas/Page'
@@ -1167,6 +1384,8 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              tenantCreate: { $ref: '#/components/examples/TenantCreate' }
             schema:
               type: object
               required: [externalId, name, slug]
@@ -1181,6 +1400,8 @@ paths:
           description: The tenant.
           content:
             application/json:
+              examples:
+                tenant: { $ref: '#/components/examples/Tenant' }
               schema: { $ref: '#/components/schemas/Tenant' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -1189,13 +1410,20 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: about:blank
+                title: Conflict
+                status: 409
+                detail: 'A tenant with the slug road-conditions is already registered.'
 
   /admin/tenants/{tenantId}:
     parameters:
       - name: tenantId
         in: path
         required: true
+        description: CHOSEN's ID for the tenant (`id`, not the CSTAR `externalId`).
         schema: { type: string, format: uuid }
+        example: 5b1e8f3a-2c47-4d9e-a613-0f8d2b7c9e14
     patch:
       tags: [Admin]
       operationId: updateTenant
@@ -1207,6 +1435,8 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              tenantSuspend: { $ref: '#/components/examples/TenantSuspend' }
             schema:
               type: object
               properties:
@@ -1217,6 +1447,8 @@ paths:
           description: The tenant.
           content:
             application/json:
+              examples:
+                tenantSuspended: { $ref: '#/components/examples/TenantSuspended' }
               schema: { $ref: '#/components/schemas/Tenant' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -1232,12 +1464,15 @@ paths:
       parameters:
         - name: includeRevoked
           in: query
+          description: Include credentials that have been revoked.
           schema: { type: boolean, default: false }
       responses:
         '200':
           description: The system credentials.
           content:
             application/json:
+              examples:
+                systemApiClientList: { $ref: '#/components/examples/SystemApiClientList' }
               schema:
                 type: object
                 required: [items]
@@ -1261,12 +1496,16 @@ paths:
         required: true
         content:
           application/json:
+            examples:
+              systemApiClientCreate: { $ref: '#/components/examples/SystemApiClientCreate' }
             schema: { $ref: '#/components/schemas/SystemApiClientCreate' }
       responses:
         '201':
           description: The credentials, including the secret.
           content:
             application/json:
+              examples:
+                issuedSystemApiClient: { $ref: '#/components/examples/IssuedSystemApiClient' }
               schema: { $ref: '#/components/schemas/IssuedApiClient' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -1288,6 +1527,8 @@ paths:
           description: The credentials, including the new secret.
           content:
             application/json:
+              examples:
+                rotatedSystemApiClient: { $ref: '#/components/examples/RotatedSystemApiClient' }
               schema: { $ref: '#/components/schemas/IssuedApiClient' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -1310,6 +1551,8 @@ paths:
           description: The revoked credentials.
           content:
             application/json:
+              examples:
+                revokedSystemApiClient: { $ref: '#/components/examples/RevokedSystemApiClient' }
               schema: { $ref: '#/components/schemas/ApiClient' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -1372,41 +1615,52 @@ components:
       required: true
       description: The CSTAR tenant ID the signed-in user is acting for.
       schema: { type: string }
+      example: c3a7e1d2-8f45-4b6a-9c02-7e1f3d5a8b60
     ClientId:
       name: clientId
       in: path
       required: true
       description: The client ID the API Services Portal issued.
       schema: { type: string, maxLength: 200 }
+      example: D5C97345-4B7E21C09A6
     TopicKey:
       name: topicKey
       in: path
       required: true
+      description: The topic's `key`, as the tenant chose it when creating the topic.
       schema: { $ref: '#/components/schemas/TopicKey' }
+      example: road-closures
     SubscriptionId:
       name: subscriptionId
       in: path
       required: true
+      description: The subscription's ID, as returned when it was created.
       schema: { type: string, format: uuid }
+      example: 7c9e2a41-0b3d-4e6f-8a15-2d4c6b8e0f31
     ContactId:
       name: contactId
       in: path
       required: true
+      description: The contact's ID, as returned in a subscription's `contactId`.
       schema: { type: string, format: uuid }
+      example: b41d7e92-5c3a-4a8b-9e06-1f2a3c4d5e6f
     PublicToken:
       name: token
       in: path
       required: true
-      description: The token from the link.
+      description: The signed token from the link CHOSEN sent.
       schema: { type: string, minLength: 20, maxLength: 512 }
+      example: v1.N2M5ZTJhNDEtMGIzZC00ZTZm.kX3pQ8sZbR2mT7vW1yC4nF6hJ9
     Cursor:
       name: cursor
       in: query
-      description: The `nextCursor` from the previous page.
+      description: The `nextCursor` from the previous page. Leave it out for the first page.
       schema: { type: string }
+      example: eyJhZnRlciI6IjFhNGY2YzhlLTNiNWQifQ
     Limit:
       name: limit
       in: query
+      description: The most items to return in one page.
       schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
 
   responses:
@@ -1415,31 +1669,66 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: about:blank
+            title: Bad Request
+            status: 400
+            detail: "The request body isn't valid."
+            instance: /api/v1/topics
+            errors:
+              - field: 'channels[1].smsKeyword'
+                message: must be 2 to 10 capital letters or digits
     Unauthorized:
       description: Missing or invalid credentials.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: about:blank
+            title: Unauthorized
+            status: 401
+            detail: "The access token has expired."
     Forbidden:
       description: Signed in, but without the role this needs, or not a member of the tenant.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: about:blank
+            title: Forbidden
+            status: 403
+            detail: "You need the CHOSEN_OPERATIONS_ADMIN role for this tenant."
     CredentialRevoked:
       description: The credentials have been revoked.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: about:blank
+            title: Conflict
+            status: 409
+            detail: "These credentials were revoked on 2026-10-20."
     CredentialIssuerFailed:
       description: The API Services Portal couldn't issue or rotate the credentials. Nothing was saved; try again later.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: about:blank
+            title: Bad Gateway
+            status: 502
+            detail: "The API Services Portal didn't respond. Nothing was saved; try again later."
     NotFound:
       description: Not found, or it belongs to another tenant.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: about:blank
+            title: Not Found
+            status: 404
+            detail: "No topic with the key road-closures."
+            instance: /api/v1/topics/road-closures
     TooManyRequests:
       description: Too many requests for this address or from this client; try later.
       headers:
@@ -1448,22 +1737,888 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: about:blank
+            title: Too Many Requests
+            status: 429
+            detail: "Too many confirmation messages for this address. Try again in 10 minutes."
     InvalidToken:
       description: The link isn't valid, has already been used, or has been cancelled.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: about:blank
+            title: Not Found
+            status: 404
+            detail: "This link isn't valid, or has already been used."
     ExpiredToken:
       description: The link has expired.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: about:blank
+            title: Gone
+            status: 410
+            detail: "This link has expired."
+
+  # Examples tell one story: a road conditions tenant with a road-closures topic, one SMS
+  # subscriber and one email subscriber. Addresses use example.com and 555 numbers, IP
+  # addresses use the documentation range, and every ID and secret is made up. Hosted page
+  # URLs use chosen.digital.gov.bc.ca for now; CHOSEN's web hostname isn't settled.
+  examples:
+    # ---------------------------------------------------------- Topics
+    TopicCreate:
+      summary: A topic offered by email and SMS, filtered by region and highway
+      value:
+        key: road-closures
+        name: Road closure alerts
+        description: Closures and major delays on provincial highways in the regions you choose.
+        pendingExpiryMinutes: 1440
+        redirectUrl: https://roads.example.com/alerts/done
+        channels:
+          - channel: EMAIL
+            confirmationRequired: true
+            confirmationTemplate:
+              notifyTemplateId: 8f14e45f-ea8b-4d1c-9b3a-2e6c7d0f5a91
+          - channel: SMS
+            confirmationRequired: true
+            confirmationTemplate:
+              inline:
+                body: 'Reply ROADS YES to get road closure alerts by text. Up to 3 messages a week. Msg & data rates may apply. Reply STOP to cancel.'
+            smsKeyword: ROADS
+        filterFields:
+          - name: region
+            label: Region
+            dataType: TEXT
+            matchType: EXACT
+            allowMultiple: true
+            required: true
+            allowedValues: [victoria, nanaimo, kamloops, prince-george]
+          - name: highway
+            label: Highway
+            dataType: TEXT
+            matchType: EXACT
+            allowMultiple: true
+            required: false
+            allowedValues: null
+    Topic:
+      summary: The road-closures topic
+      value:
+        id: 3f2b8c1e-6d4a-4f7e-9b21-5a8c0d7e4f10
+        key: road-closures
+        name: Road closure alerts
+        description: Closures and major delays on provincial highways in the regions you choose.
+        status: ACTIVE
+        pendingExpiryMinutes: 1440
+        redirectUrl: https://roads.example.com/alerts/done
+        manageUrl: https://chosen.digital.gov.bc.ca/manage/3f2b8c1e-6d4a-4f7e-9b21-5a8c0d7e4f10
+        channels:
+          - channel: EMAIL
+            confirmationRequired: true
+            confirmationTemplate:
+              notifyTemplateId: 8f14e45f-ea8b-4d1c-9b3a-2e6c7d0f5a91
+            smsKeyword: null
+          - channel: SMS
+            confirmationRequired: true
+            confirmationTemplate:
+              inline:
+                body: 'Reply ROADS YES to get road closure alerts by text. Up to 3 messages a week. Msg & data rates may apply. Reply STOP to cancel.'
+            smsKeyword: ROADS
+        filterFields:
+          - name: region
+            label: Region
+            dataType: TEXT
+            matchType: EXACT
+            allowMultiple: true
+            required: true
+            allowedValues: [victoria, nanaimo, kamloops, prince-george]
+          - name: highway
+            label: Highway
+            dataType: TEXT
+            matchType: EXACT
+            allowMultiple: true
+            required: false
+            allowedValues: null
+        createdAt: '2026-11-02T17:45:12Z'
+        updatedAt: '2026-11-02T17:45:12Z'
+    TopicPage:
+      summary: One page of topics
+      value:
+        items:
+          - id: 3f2b8c1e-6d4a-4f7e-9b21-5a8c0d7e4f10
+            key: road-closures
+            name: Road closure alerts
+            description: Closures and major delays on provincial highways in the regions you choose.
+            status: ACTIVE
+            pendingExpiryMinutes: 1440
+            redirectUrl: https://roads.example.com/alerts/done
+            manageUrl: https://chosen.digital.gov.bc.ca/manage/3f2b8c1e-6d4a-4f7e-9b21-5a8c0d7e4f10
+            channels:
+              - channel: SMS
+                confirmationRequired: true
+                confirmationTemplate:
+                  inline:
+                    body: 'Reply ROADS YES to get road closure alerts by text. Up to 3 messages a week. Msg & data rates may apply. Reply STOP to cancel.'
+                smsKeyword: ROADS
+            filterFields:
+              - name: region
+                label: Region
+                dataType: TEXT
+                matchType: EXACT
+                allowMultiple: true
+                required: true
+                allowedValues: [victoria, nanaimo, kamloops, prince-george]
+            createdAt: '2026-11-02T17:45:12Z'
+            updatedAt: '2026-11-02T17:45:12Z'
+        nextCursor: null
+    TopicUpdate:
+      summary: Give people two days to confirm
+      value:
+        description: Closures and major delays on provincial highways, including ferry terminal approaches.
+        pendingExpiryMinutes: 2880
+    TopicArchive:
+      summary: Stop offering the topic
+      value:
+        status: ARCHIVED
+    TopicChannelSms:
+      summary: Offer the topic by SMS, with double opt-in
+      value:
+        confirmationRequired: true
+        confirmationTemplate:
+          inline:
+            body: 'Reply ROADS YES to get road closure alerts by text. Up to 3 messages a week. Msg & data rates may apply. Reply STOP to cancel.'
+        smsKeyword: ROADS
+    TopicChannelEmail:
+      summary: Offer the topic by email, using a Notify template
+      value:
+        confirmationRequired: true
+        confirmationTemplate:
+          notifyTemplateId: 8f14e45f-ea8b-4d1c-9b3a-2e6c7d0f5a91
+    FilterFieldCreate:
+      summary: Let people choose highways
+      value:
+        name: highway
+        label: Highway
+        dataType: TEXT
+        matchType: EXACT
+        allowMultiple: true
+        required: false
+        allowedValues: null
+    FilterFieldUpdate:
+      summary: Add a region
+      value:
+        label: Region
+        allowedValues: [victoria, nanaimo, kamloops, prince-george, cranbrook]
+
+    # --------------------------------------------------- Subscriptions
+    SubscribeSms:
+      summary: SMS, from the tenant's web form, with the consent wording shown
+      value:
+        channel: SMS
+        address: '+12505550123'
+        externalSubjectId: 4f7a2c9e1b3d5f6a8c0e2b4d6f8a1c3e
+        filters:
+          region: [victoria, nanaimo]
+          highway: ['1', '17']
+        consent:
+          method: WEB_FORM
+          text: 'Send me road closure alerts by text for the regions I selected. Up to 3 messages a week. Message and data rates may apply. Reply STOP to cancel.'
+          capturedAt: '2026-11-20T18:02:41Z'
+          sourceIp: 203.0.113.42
+          userAgent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1
+    SubscribeEmailAssisted:
+      summary: Email, entered by staff on a phone call, without consent wording
+      value:
+        channel: EMAIL
+        address: person@example.com
+        filters:
+          region: [kamloops]
+        consent:
+          method: ASSISTED
+          actor: staff-4821
+    SubscriptionPending:
+      summary: Waiting for the person to reply ROADS YES
+      value:
+        id: 7c9e2a41-0b3d-4e6f-8a15-2d4c6b8e0f31
+        topicKey: road-closures
+        contactId: b41d7e92-5c3a-4a8b-9e06-1f2a3c4d5e6f
+        channel: SMS
+        address: '+12505550123'
+        externalSubjectId: 4f7a2c9e1b3d5f6a8c0e2b4d6f8a1c3e
+        status: PENDING
+        filters:
+          region: [victoria, nanaimo]
+          highway: ['1', '17']
+        suppressed: false
+        createdAt: '2026-11-20T18:02:42Z'
+        confirmedAt: null
+        unsubscribedAt: null
+        pendingExpiresAt: '2026-11-21T18:02:42Z'
+    SubscriptionActive:
+      summary: Confirmed and receiving alerts
+      value:
+        id: 7c9e2a41-0b3d-4e6f-8a15-2d4c6b8e0f31
+        topicKey: road-closures
+        contactId: b41d7e92-5c3a-4a8b-9e06-1f2a3c4d5e6f
+        channel: SMS
+        address: '+12505550123'
+        externalSubjectId: 4f7a2c9e1b3d5f6a8c0e2b4d6f8a1c3e
+        status: ACTIVE
+        filters:
+          region: [victoria, nanaimo]
+          highway: ['1', '17']
+        suppressed: false
+        createdAt: '2026-11-20T18:02:42Z'
+        confirmedAt: '2026-11-20T18:04:10Z'
+        unsubscribedAt: null
+        pendingExpiresAt: null
+    SubscriptionUnsubscribed:
+      summary: Unsubscribed from the topic
+      value:
+        id: 7c9e2a41-0b3d-4e6f-8a15-2d4c6b8e0f31
+        topicKey: road-closures
+        contactId: b41d7e92-5c3a-4a8b-9e06-1f2a3c4d5e6f
+        channel: SMS
+        address: '+12505550123'
+        externalSubjectId: 4f7a2c9e1b3d5f6a8c0e2b4d6f8a1c3e
+        status: UNSUBSCRIBED
+        filters:
+          region: [victoria, nanaimo]
+          highway: ['1', '17']
+        suppressed: false
+        createdAt: '2026-11-20T18:02:42Z'
+        confirmedAt: '2026-11-20T18:04:10Z'
+        unsubscribedAt: '2026-11-25T02:15:37Z'
+        pendingExpiresAt: null
+    SubscriptionPage:
+      summary: One page of a topic's subscriptions
+      value:
+        items:
+          - id: 7c9e2a41-0b3d-4e6f-8a15-2d4c6b8e0f31
+            topicKey: road-closures
+            contactId: b41d7e92-5c3a-4a8b-9e06-1f2a3c4d5e6f
+            channel: SMS
+            address: '+12505550123'
+            externalSubjectId: 4f7a2c9e1b3d5f6a8c0e2b4d6f8a1c3e
+            status: ACTIVE
+            filters:
+              region: [victoria, nanaimo]
+              highway: ['1', '17']
+            suppressed: false
+            createdAt: '2026-11-20T18:02:42Z'
+            confirmedAt: '2026-11-20T18:04:10Z'
+            unsubscribedAt: null
+            pendingExpiresAt: null
+          - id: 1a4f6c8e-3b5d-4f71-9a28-6c0e2b4d8f13
+            topicKey: road-closures
+            contactId: 0d2f4a6c-8e1b-4c3d-a5f7-9b1d3e5f7a92
+            channel: EMAIL
+            address: person@example.com
+            externalSubjectId: null
+            status: ACTIVE
+            filters:
+              region: [kamloops]
+            suppressed: false
+            createdAt: '2026-11-12T21:30:05Z'
+            confirmedAt: '2026-11-12T21:41:58Z'
+            unsubscribedAt: null
+            pendingExpiresAt: null
+        nextCursor: eyJhZnRlciI6IjFhNGY2YzhlLTNiNWQifQ
+    SubscriptionUpdate:
+      summary: Swap Nanaimo for Kamloops
+      value:
+        filters:
+          region: [victoria, kamloops]
+        actor: staff-4821
+    SubscriptionUpdated:
+      summary: The subscription with its new regions
+      value:
+        id: 7c9e2a41-0b3d-4e6f-8a15-2d4c6b8e0f31
+        topicKey: road-closures
+        contactId: b41d7e92-5c3a-4a8b-9e06-1f2a3c4d5e6f
+        channel: SMS
+        address: '+12505550123'
+        externalSubjectId: 4f7a2c9e1b3d5f6a8c0e2b4d6f8a1c3e
+        status: ACTIVE
+        filters:
+          region: [victoria, kamloops]
+          highway: ['1', '17']
+        suppressed: false
+        createdAt: '2026-11-20T18:02:42Z'
+        confirmedAt: '2026-11-20T18:04:10Z'
+        unsubscribedAt: null
+        pendingExpiresAt: null
+    UnsubscribeRequest:
+      summary: Unsubscribed by staff at the person's request
+      value:
+        reason: Asked by phone to stop road closure texts
+        actor: staff-4821
+
+    # -------------------------------------------------------- Contacts
+    ContactList:
+      summary: One match
+      value:
+        items:
+          - id: b41d7e92-5c3a-4a8b-9e06-1f2a3c4d5e6f
+            channel: SMS
+            address: '+12505550123'
+            externalSubjectId: 4f7a2c9e1b3d5f6a8c0e2b4d6f8a1c3e
+            verifiedAt: '2026-11-20T18:04:10Z'
+            suppressed: false
+            replacedBy: null
+    ContactWithSubscriptions:
+      summary: A contact subscribed to one topic
+      value:
+        id: b41d7e92-5c3a-4a8b-9e06-1f2a3c4d5e6f
+        channel: SMS
+        address: '+12505550123'
+        externalSubjectId: 4f7a2c9e1b3d5f6a8c0e2b4d6f8a1c3e
+        verifiedAt: '2026-11-20T18:04:10Z'
+        suppressed: false
+        replacedBy: null
+        subscriptions:
+          - id: 7c9e2a41-0b3d-4e6f-8a15-2d4c6b8e0f31
+            topicKey: road-closures
+            contactId: b41d7e92-5c3a-4a8b-9e06-1f2a3c4d5e6f
+            channel: SMS
+            address: '+12505550123'
+            externalSubjectId: 4f7a2c9e1b3d5f6a8c0e2b4d6f8a1c3e
+            status: ACTIVE
+            filters:
+              region: [victoria, nanaimo]
+              highway: ['1', '17']
+            suppressed: false
+            createdAt: '2026-11-20T18:02:42Z'
+            confirmedAt: '2026-11-20T18:04:10Z'
+            unsubscribedAt: null
+            pendingExpiresAt: null
+    ContactUnsubscribedFromAll:
+      summary: The contact after unsubscribing from everything
+      value:
+        id: b41d7e92-5c3a-4a8b-9e06-1f2a3c4d5e6f
+        channel: SMS
+        address: '+12505550123'
+        externalSubjectId: 4f7a2c9e1b3d5f6a8c0e2b4d6f8a1c3e
+        verifiedAt: '2026-11-20T18:04:10Z'
+        suppressed: false
+        replacedBy: null
+        subscriptions:
+          - id: 7c9e2a41-0b3d-4e6f-8a15-2d4c6b8e0f31
+            topicKey: road-closures
+            contactId: b41d7e92-5c3a-4a8b-9e06-1f2a3c4d5e6f
+            channel: SMS
+            address: '+12505550123'
+            externalSubjectId: 4f7a2c9e1b3d5f6a8c0e2b4d6f8a1c3e
+            status: UNSUBSCRIBED
+            filters:
+              region: [victoria, nanaimo]
+              highway: ['1', '17']
+            suppressed: false
+            createdAt: '2026-11-20T18:02:42Z'
+            confirmedAt: '2026-11-20T18:04:10Z'
+            unsubscribedAt: '2026-11-25T02:15:37Z'
+            pendingExpiresAt: null
+    ChangeAddress:
+      summary: The person has a new mobile number
+      value:
+        address: '+12505550188'
+        actor: staff-4821
+    ContactUnverified:
+      summary: The new contact, waiting for verification
+      value:
+        id: e8a3f5c1-7d29-4b60-8c14-6a2e9f0b3d75
+        channel: SMS
+        address: '+12505550188'
+        externalSubjectId: 4f7a2c9e1b3d5f6a8c0e2b4d6f8a1c3e
+        verifiedAt: null
+        suppressed: false
+        replacedBy: null
+    UnsubscribeAllRequest:
+      summary: The person asked to stop everything from this tenant
+      value:
+        reason: Moving out of province
+        actor: staff-4821
+
+    # ---------------------------------------------------- Suppressions
+    SuppressionPage:
+      summary: A shared STOP and one of the tenant's own suppressions
+      value:
+        items:
+          - id: 9e7d5c3b-1a2f-4e8d-b604-3c5a7e9f1b28
+            channel: SMS
+            address: '+12505550147'
+            sender: '+12505550100'
+            scope: SHARED
+            reason: null
+            note: null
+            suppressedAt: '2026-11-18T03:12:09Z'
+            liftedAt: null
+          - id: 5a3c1e9f-7b2d-4d6e-8f40-2b4d6f8a0c17
+            channel: EMAIL
+            address: person@example.com
+            sender: null
+            scope: TENANT
+            reason: MANUAL
+            note: Asked by phone to stop all email from us
+            suppressedAt: '2026-11-22T19:48:30Z'
+            liftedAt: null
+        nextCursor: null
+    SuppressionCreate:
+      summary: Stop all email to one address from this tenant
+      value:
+        channel: EMAIL
+        address: person@example.com
+        note: Asked by phone to stop all email from us
+        actor: staff-4821
+    Suppression:
+      summary: The tenant's own suppression
+      value:
+        id: 5a3c1e9f-7b2d-4d6e-8f40-2b4d6f8a0c17
+        channel: EMAIL
+        address: person@example.com
+        sender: null
+        scope: TENANT
+        reason: MANUAL
+        note: Asked by phone to stop all email from us
+        suppressedAt: '2026-11-22T19:48:30Z'
+        liftedAt: null
+    SuppressionLifted:
+      summary: The same suppression, lifted
+      value:
+        id: 5a3c1e9f-7b2d-4d6e-8f40-2b4d6f8a0c17
+        channel: EMAIL
+        address: person@example.com
+        sender: null
+        scope: TENANT
+        reason: MANUAL
+        note: Asked by phone to stop all email from us
+        suppressedAt: '2026-11-22T19:48:30Z'
+        liftedAt: '2026-11-26T16:05:00Z'
+
+    # --------------------------------------------------------- History
+    ConsentEventPage:
+      summary: Subscribed on the web, confirmed by text, then changed regions
+      value:
+        items:
+          - id: 2d6f8a0c-4e1b-4a3d-9c57-7e9f1b3d5a64
+            subscriptionId: 7c9e2a41-0b3d-4e6f-8a15-2d4c6b8e0f31
+            action: OPT_IN
+            method: WEB_FORM
+            text: 'Send me road closure alerts by text for the regions I selected. Up to 3 messages a week. Message and data rates may apply. Reply STOP to cancel.'
+            actor: null
+            sourceIp: 203.0.113.42
+            userAgent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1
+            filters:
+              region: [victoria, nanaimo]
+              highway: ['1', '17']
+            occurredAt: '2026-11-20T18:02:41Z'
+          - id: 4b8d0f2e-6a3c-4c5f-8e79-9a1c3e5f7b86
+            subscriptionId: 7c9e2a41-0b3d-4e6f-8a15-2d4c6b8e0f31
+            action: CONFIRM
+            method: SMS_REPLY
+            text: 'Reply ROADS YES to get road closure alerts by text. Up to 3 messages a week. Msg & data rates may apply. Reply STOP to cancel.'
+            actor: null
+            sourceIp: null
+            userAgent: null
+            filters: null
+            occurredAt: '2026-11-20T18:04:10Z'
+          - id: 6c0e2a4f-8b5d-4e7a-9f91-1b3d5f7a9c08
+            subscriptionId: 7c9e2a41-0b3d-4e6f-8a15-2d4c6b8e0f31
+            action: FILTERS_CHANGED
+            method: MANAGE_PAGE
+            text: null
+            actor: null
+            sourceIp: 198.51.100.17
+            userAgent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
+            filters:
+              region: [victoria, kamloops]
+              highway: ['1', '17']
+            occurredAt: '2026-11-24T22:31:56Z'
+        nextCursor: null
+    AuditEventPage:
+      summary: A topic setting changed and a filter field added
+      value:
+        items:
+          - id: 8e2a4c6f-0d7b-4f9c-a1b3-3d5f7a9c1e20
+            entityType: TOPIC
+            entityId: 3f2b8c1e-6d4a-4f7e-9b21-5a8c0d7e4f10
+            action: UPDATE
+            actor: jdoe@idir
+            changes:
+              pendingExpiryMinutes: { from: 1440, to: 2880 }
+            occurredAt: '2026-11-21T17:10:44Z'
+          - id: 0f4b6d8a-2e9c-4a1d-b3c5-5f7a9c1e3b42
+            entityType: FILTER_FIELD
+            entityId: a7c9e1b3-5d2f-4b8a-9c06-4e6a8c0e2f51
+            action: CREATE
+            actor: D5C97345-4B7E21C09A6
+            changes:
+              name: { from: null, to: highway }
+              label: { from: null, to: Highway }
+            occurredAt: '2026-11-05T20:02:17Z'
+        nextCursor: null
+
+    # ------------------------------------------------------ Recipients
+    RecipientQuery:
+      summary: Notify is texting a Victoria closure on Highway 1
+      value:
+        tenantId: c3a7e1d2-8f45-4b6a-9c02-7e1f3d5a8b60
+        topicKey: road-closures
+        channel: SMS
+        sender: '+12505550100'
+        filters:
+          region: [victoria]
+          highway: ['1']
+        limit: 500
+    RecipientPage:
+      summary: Two recipients, with more to come
+      value:
+        items:
+          - subscriptionId: 7c9e2a41-0b3d-4e6f-8a15-2d4c6b8e0f31
+            channel: SMS
+            address: '+12505550123'
+            externalSubjectId: 4f7a2c9e1b3d5f6a8c0e2b4d6f8a1c3e
+            unsubscribeUrl: https://chosen.digital.gov.bc.ca/unsubscribe/v1.N2M5ZTJhNDEtMGIzZC00ZTZm.kX3pQ8sZbR2mT7vW1yC4nF6hJ9
+          - subscriptionId: c5e7a9b1-3d4f-4e6a-8b2c-0d2f4a6c8e93
+            channel: SMS
+            address: '+12505550161'
+            externalSubjectId: null
+            unsubscribeUrl: https://chosen.digital.gov.bc.ca/unsubscribe/v1.YzVlN2E5YjEtM2Q0Zi00ZTZh.Tb6qW2eYrU8iO4pAs0dFg3hK7
+        nextCursor: eyJhZnRlciI6ImM1ZTdhOWIxLTNkNGYifQ
+        manageUrl: https://chosen.digital.gov.bc.ca/manage/3f2b8c1e-6d4a-4f7e-9b21-5a8c0d7e4f10
+
+    # --------------------------------------------------------- Inbound
+    InboundSmsKeywordOff:
+      summary: The person texts ROADS OFF
+      value:
+        eventId: 61b3d5f7-9a2c-4e4d-8f6a-8c0e2a4c6e17
+        from: '+12505550123'
+        to: '+12505550100'
+        body: ROADS OFF
+        provider: AWS
+        providerMessageId: 0f3c8a1e-52b7-4d96-a8e4-7b2d9c6f1a35
+        providerOptOutApplied: false
+        receivedAt: '2026-11-25T02:15:36Z'
+    InboundSmsStop:
+      summary: The person texts STOP
+      value:
+        eventId: 83d5f7a9-1b4c-4e6f-a08b-0e2a4c6e8f39
+        from: '+12505550147'
+        to: '+12505550100'
+        body: STOP
+        provider: AWS
+        providerMessageId: 4a9e2c7b-1d58-4f3a-b6c0-9e8d7f2a5b14
+        providerOptOutApplied: true
+        receivedAt: '2026-11-18T03:12:08Z'
+    InboundSmsResultKeywordOff:
+      summary: Unsubscribed from road-closures and replied
+      value:
+        outcome: KEYWORD_OPT_OUT
+        replySent: true
+    InboundSmsResultStop:
+      summary: Suppressed; the provider already replied
+      value:
+        outcome: STOP_APPLIED
+        replySent: false
+    DeliveryEventHardBounce:
+      summary: An email address that no longer exists
+      value:
+        eventId: a5f7b9c1-3d6e-4f8a-b2c4-2a4c6e8f0b51
+        type: EMAIL_HARD_BOUNCE
+        channel: EMAIL
+        address: old.address@example.com
+        subscriptionId: 1a4f6c8e-3b5d-4f71-9a28-6c0e2b4d8f13
+        occurredAt: '2026-11-23T15:40:12Z'
+    DeliveryEventComplaint:
+      summary: The person marked an alert as spam
+      value:
+        eventId: c7b9d1e3-5f8a-4a2c-94e6-4c6e8a0b2d73
+        type: EMAIL_COMPLAINT
+        tenantId: c3a7e1d2-8f45-4b6a-9c02-7e1f3d5a8b60
+        channel: EMAIL
+        address: person@example.com
+        subscriptionId: 1a4f6c8e-3b5d-4f71-9a28-6c0e2b4d8f13
+        occurredAt: '2026-11-24T08:05:51Z'
+
+    # ---------------------------------------------------------- Public
+    PublicSummaryPending:
+      summary: What the confirmation page shows
+      value:
+        topicName: Road closure alerts
+        topicDescription: Closures and major delays on provincial highways in the regions you choose.
+        tenantName: Road Conditions Service
+        channel: EMAIL
+        maskedAddress: p***n@example.com
+        status: PENDING
+    PublicSummaryActive:
+      summary: What the unsubscribe page shows
+      value:
+        topicName: Road closure alerts
+        topicDescription: Closures and major delays on provincial highways in the regions you choose.
+        tenantName: Road Conditions Service
+        channel: EMAIL
+        maskedAddress: p***n@example.com
+        status: ACTIVE
+    PublicConfirmed:
+      summary: Confirmed; the page sends the person back to the tenant's app
+      value:
+        status: ACTIVE
+        redirectUrl: https://roads.example.com/alerts/done
+    PublicUnsubscribed:
+      summary: Unsubscribed; the page sends the person back to the tenant's app
+      value:
+        status: UNSUBSCRIBED
+        redirectUrl: https://roads.example.com/alerts/done
+    PublicManageView:
+      summary: The person's subscriptions with this tenant
+      value:
+        tenantName: Road Conditions Service
+        channel: EMAIL
+        maskedAddress: p***n@example.com
+        expiresAt: '2026-11-27T19:30:00Z'
+        subscriptions:
+          - id: 1a4f6c8e-3b5d-4f71-9a28-6c0e2b4d8f13
+            topicName: Road closure alerts
+            topicDescription: Closures and major delays on provincial highways in the regions you choose.
+            status: ACTIVE
+            filters:
+              region: [kamloops]
+            filterFields:
+              - name: region
+                label: Region
+                dataType: TEXT
+                matchType: EXACT
+                allowMultiple: true
+                required: true
+                allowedValues: [victoria, nanaimo, kamloops, prince-george]
+              - name: highway
+                label: Highway
+                dataType: TEXT
+                matchType: EXACT
+                allowMultiple: true
+                required: false
+                allowedValues: null
+    PublicManageViewUpdated:
+      summary: The view after adding Victoria
+      value:
+        tenantName: Road Conditions Service
+        channel: EMAIL
+        maskedAddress: p***n@example.com
+        expiresAt: '2026-11-27T19:30:00Z'
+        subscriptions:
+          - id: 1a4f6c8e-3b5d-4f71-9a28-6c0e2b4d8f13
+            topicName: Road closure alerts
+            topicDescription: Closures and major delays on provincial highways in the regions you choose.
+            status: ACTIVE
+            filters:
+              region: [kamloops, victoria]
+            filterFields:
+              - name: region
+                label: Region
+                dataType: TEXT
+                matchType: EXACT
+                allowMultiple: true
+                required: true
+                allowedValues: [victoria, nanaimo, kamloops, prince-george]
+    PublicManageViewUnsubscribed:
+      summary: The same view after unsubscribing
+      value:
+        tenantName: Road Conditions Service
+        channel: EMAIL
+        maskedAddress: p***n@example.com
+        expiresAt: '2026-11-27T19:30:00Z'
+        subscriptions:
+          - id: 1a4f6c8e-3b5d-4f71-9a28-6c0e2b4d8f13
+            topicName: Road closure alerts
+            topicDescription: Closures and major delays on provincial highways in the regions you choose.
+            status: UNSUBSCRIBED
+            filters:
+              region: [kamloops]
+            filterFields:
+              - name: region
+                label: Region
+                dataType: TEXT
+                matchType: EXACT
+                allowMultiple: true
+                required: true
+                allowedValues: [victoria, nanaimo, kamloops, prince-george]
+    PublicFiltersUpdate:
+      summary: Add Victoria
+      value:
+        filters:
+          region: [kamloops, victoria]
+    ManageLinkRequest:
+      summary: Ask for a sign-in link by email
+      value:
+        channel: EMAIL
+        address: person@example.com
+
+    # ----------------------------------------------------- Credentials
+    ApiClientList:
+      summary: One active and one revoked credential
+      value:
+        items:
+          - clientId: D5C97345-4B7E21C09A6
+            label: Road closures app (PROD)
+            systemRole: null
+            issuedBy: jdoe@idir
+            issuedAt: '2026-10-20T18:22:03Z'
+            rotatedAt: null
+            revokedBy: null
+            revokedAt: null
+          - clientId: D5C97345-8E2A61F04B3
+            label: Road closures app (PROD, old)
+            systemRole: null
+            issuedBy: jdoe@idir
+            issuedAt: '2026-09-02T16:10:47Z'
+            rotatedAt: null
+            revokedBy: asmith@idir
+            revokedAt: '2026-10-20T18:30:15Z'
+    ApiClientCreate:
+      summary: Credentials for the production app
+      value:
+        label: Road closures app (PROD)
+    IssuedApiClient:
+      summary: New credentials; the secret is shown only here
+      value:
+        clientId: D5C97345-4B7E21C09A6
+        label: Road closures app (PROD)
+        systemRole: null
+        issuedBy: jdoe@idir
+        issuedAt: '2026-10-20T18:22:03Z'
+        rotatedAt: null
+        revokedBy: null
+        revokedAt: null
+        clientSecret: q7Nf2xKp9VtR4mWc8ZbL1sHy6DjGe3Ua
+        tokenUrl: https://loginproxy.gov.bc.ca/auth/realms/apigw/protocol/openid-connect/token
+    RotatedApiClient:
+      summary: The same client ID with a new secret
+      value:
+        clientId: D5C97345-4B7E21C09A6
+        label: Road closures app (PROD)
+        systemRole: null
+        issuedBy: jdoe@idir
+        issuedAt: '2026-10-20T18:22:03Z'
+        rotatedAt: '2026-11-26T17:00:29Z'
+        revokedBy: null
+        revokedAt: null
+        clientSecret: Hc4Lw9Zr2TbN7yQx5PmF8kVd1SgJ6aEu
+        tokenUrl: https://loginproxy.gov.bc.ca/auth/realms/apigw/protocol/openid-connect/token
+    RevokedApiClient:
+      summary: Revoked credentials
+      value:
+        clientId: D5C97345-8E2A61F04B3
+        label: Road closures app (PROD, old)
+        systemRole: null
+        issuedBy: jdoe@idir
+        issuedAt: '2026-09-02T16:10:47Z'
+        rotatedAt: null
+        revokedBy: asmith@idir
+        revokedAt: '2026-10-20T18:30:15Z'
+    SystemApiClientList:
+      summary: Notify's credentials
+      value:
+        items:
+          - clientId: D5C97345-1C7F93A2E58
+            label: Notify PROD
+            systemRole: NOTIFY
+            issuedBy: chosen-operator@idir
+            issuedAt: '2026-10-01T15:00:00Z'
+            rotatedAt: null
+            revokedBy: null
+            revokedAt: null
+    SystemApiClientCreate:
+      summary: Credentials for Notify
+      value:
+        systemRole: NOTIFY
+        label: Notify PROD
+    IssuedSystemApiClient:
+      summary: Notify's new credentials; the secret is shown only here
+      value:
+        clientId: D5C97345-1C7F93A2E58
+        label: Notify PROD
+        systemRole: NOTIFY
+        issuedBy: chosen-operator@idir
+        issuedAt: '2026-10-01T15:00:00Z'
+        rotatedAt: null
+        revokedBy: null
+        revokedAt: null
+        clientSecret: Zp3Ke8Rv1XnW6cGt9BmQ4hLy7FsDa2Uj
+        tokenUrl: https://loginproxy.gov.bc.ca/auth/realms/apigw/protocol/openid-connect/token
+    RotatedSystemApiClient:
+      summary: Notify's client ID with a new secret
+      value:
+        clientId: D5C97345-1C7F93A2E58
+        label: Notify PROD
+        systemRole: NOTIFY
+        issuedBy: chosen-operator@idir
+        issuedAt: '2026-10-01T15:00:00Z'
+        rotatedAt: '2026-11-26T17:05:12Z'
+        revokedBy: null
+        revokedAt: null
+        clientSecret: Wm6Tc1Yq8HdP3vKz5RnB9gXs2LfJ7eAo
+        tokenUrl: https://loginproxy.gov.bc.ca/auth/realms/apigw/protocol/openid-connect/token
+    RevokedSystemApiClient:
+      summary: Notify's revoked credentials
+      value:
+        clientId: D5C97345-1C7F93A2E58
+        label: Notify PROD
+        systemRole: NOTIFY
+        issuedBy: chosen-operator@idir
+        issuedAt: '2026-10-01T15:00:00Z'
+        rotatedAt: null
+        revokedBy: chosen-operator@idir
+        revokedAt: '2026-11-26T17:20:00Z'
+
+    # ----------------------------------------------------------- Admin
+    TenantPage:
+      summary: One page of tenants
+      value:
+        items:
+          - id: 5b1e8f3a-2c47-4d9e-a613-0f8d2b7c9e14
+            externalId: c3a7e1d2-8f45-4b6a-9c02-7e1f3d5a8b60
+            name: Road Conditions Service
+            slug: road-conditions
+            status: ACTIVE
+            createdAt: '2026-10-15T16:20:00Z'
+        nextCursor: null
+    TenantCreate:
+      summary: Register the road conditions service
+      value:
+        externalId: c3a7e1d2-8f45-4b6a-9c02-7e1f3d5a8b60
+        name: Road Conditions Service
+        slug: road-conditions
+    Tenant:
+      summary: The road conditions tenant
+      value:
+        id: 5b1e8f3a-2c47-4d9e-a613-0f8d2b7c9e14
+        externalId: c3a7e1d2-8f45-4b6a-9c02-7e1f3d5a8b60
+        name: Road Conditions Service
+        slug: road-conditions
+        status: ACTIVE
+        createdAt: '2026-10-15T16:20:00Z'
+    TenantSuspend:
+      summary: Suspend the tenant
+      value:
+        status: SUSPENDED
+    TenantSuspended:
+      summary: The suspended tenant
+      value:
+        id: 5b1e8f3a-2c47-4d9e-a613-0f8d2b7c9e14
+        externalId: c3a7e1d2-8f45-4b6a-9c02-7e1f3d5a8b60
+        name: Road Conditions Service
+        slug: road-conditions
+        status: SUSPENDED
+        createdAt: '2026-10-15T16:20:00Z'
 
   schemas:
     # ------------------------------------------------------------ Shared
     Channel:
       type: string
       enum: [EMAIL, SMS]
+      description: How a message is delivered.
     Address:
       type: string
       maxLength: 320
@@ -1477,6 +2632,7 @@ components:
     FilterFieldName:
       type: string
       pattern: '^[a-z][a-z0-9_]{0,62}$'
+      description: A filter field's name, used as its key in `filters`.
       examples: [region]
     Filters:
       type: object
@@ -1490,7 +2646,9 @@ components:
       type: object
       required: [items, nextCursor]
       properties:
-        items: { type: array }
+        items:
+          type: array
+          description: The results on this page.
         nextCursor:
           type: [string, 'null']
           description: Pass as `cursor` for the next page; `null` on the last page.
@@ -1498,52 +2656,81 @@ components:
       type: object
       description: RFC 9457 problem details.
       properties:
-        type: { type: string, format: uri-reference }
-        title: { type: string }
-        status: { type: integer }
-        detail: { type: string }
-        instance: { type: string }
+        type:
+          type: string
+          format: uri-reference
+          description: Identifies the kind of problem. `about:blank` when the status code says enough.
+        title:
+          type: string
+          description: A short summary of the kind of problem, the same for every occurrence.
+        status:
+          type: integer
+          description: The HTTP status code.
+        detail:
+          type: string
+          description: What went wrong this time, in words a developer can act on.
+        instance:
+          type: string
+          description: The request path the problem happened on.
         errors:
           type: array
           description: Field-level validation errors.
           items:
             type: object
             properties:
-              field: { type: string }
-              message: { type: string }
+              field:
+                type: string
+                description: The path of the field in the request, e.g. `channels[1].smsKeyword`.
+              message:
+                type: string
+                description: What's wrong with it.
 
     # ------------------------------------------------------------ Topics
     TopicStatus:
       type: string
       enum: [ACTIVE, ARCHIVED]
+      description: |
+        `ACTIVE`: offered to subscribers and returned by recipient queries.
+        `ARCHIVED`: no longer offered and returns no recipients; its subscriptions and history are kept.
     FilterField:
       type: object
+      description: One way subscribers can narrow a topic, such as by region.
       required: [name, dataType, matchType]
       properties:
-        name: { $ref: '#/components/schemas/FilterFieldName' }
+        name:
+          $ref: '#/components/schemas/FilterFieldName'
+          description: The field's key in a subscription's `filters`, e.g. `region`. Can't be changed later.
         label:
           type: string
           maxLength: 200
-          description: Shown on the manage page.
+          description: The field's name as people see it on the manage page, e.g. "Region".
         dataType:
           type: string
           enum: [TEXT]
-          description: Phase 2 adds `NUMBER`.
+          description: |
+            What kind of values the field holds. Only `TEXT` for now. Phase 2 adds `NUMBER`, so a
+            subscriber can choose a number, such as a threshold, and have it compared as a number.
         matchType:
           type: string
           enum: [EXACT]
-          description: Phase 2 adds threshold matches (`MIN`, `MAX`).
+          description: |
+            How a subscriber's values are compared with an event's. `EXACT`: the event's value must
+            equal one of the values the subscriber chose. Phase 2 adds `MIN` and `MAX` for `NUMBER`
+            fields, e.g. "only when the value is at least 50".
         allowMultiple:
           type: boolean
           default: true
+          description: |
+            Whether a subscriber can choose more than one value, e.g. both `victoria` and `nanaimo`.
+            If `false`, they choose at most one.
         required:
           type: boolean
           default: false
-          description: Subscribers must choose at least one value.
+          description: Subscribers must choose at least one value. If `false`, leaving the field empty matches every value.
         allowedValues:
           type: [array, 'null']
           items: { type: string, maxLength: 200 }
-          description: If set, chosen values must come from this list.
+          description: If set, chosen values must come from this list. If `null`, any text is accepted.
     ConfirmationTemplate:
       type: object
       description: The confirmation message. Give either a Notify template ID or inline content.
@@ -1551,19 +2738,22 @@ components:
         - type: object
           required: [notifyTemplateId]
           properties:
-            notifyTemplateId: { type: string }
+            notifyTemplateId:
+              type: string
+              description: The ID of a template already set up in Notify for the tenant.
           additionalProperties: false
         - type: object
           required: [inline]
           properties:
             inline:
               type: object
+              description: The message itself, for tenants that don't keep it as a Notify template.
               required: [body]
               properties:
                 subject:
                   type: string
                   maxLength: 200
-                  description: Email only.
+                  description: The email subject line. Email only.
                 body:
                   type: string
                   maxLength: 5000
@@ -1584,7 +2774,7 @@ components:
             and expire after the topic's `pendingExpiryMinutes`. Changing it affects only new
             subscriptions.
         confirmationTemplate:
-          description: Required when `confirmationRequired` is `true`.
+          description: The message CHOSEN sends to ask the person to confirm. Required when `confirmationRequired` is `true`.
           $ref: '#/components/schemas/ConfirmationTemplate'
         smsKeyword:
           type: [string, 'null']
@@ -1596,62 +2786,104 @@ components:
         - type: object
           required: [channel]
           properties:
-            channel: { $ref: '#/components/schemas/Channel' }
+            channel:
+              $ref: '#/components/schemas/Channel'
+              description: The channel these settings are for. A topic has at most one entry per channel.
         - $ref: '#/components/schemas/TopicChannelSettings'
     TopicCreate:
       type: object
       required: [key, name, channels]
       properties:
-        key: { $ref: '#/components/schemas/TopicKey' }
+        key:
+          $ref: '#/components/schemas/TopicKey'
+          description: The tenant's own ID for the topic, used in URLs and by Notify. Can't be changed later.
         name:
           type: string
           maxLength: 200
-          description: Shown to subscribers.
-        description: { type: string, maxLength: 2000 }
+          description: The topic's name as subscribers see it, e.g. on the confirm and manage pages.
+        description:
+          type: string
+          maxLength: 2000
+          description: A sentence or two telling subscribers what they'll get. Shown on the hosted pages.
         pendingExpiryMinutes:
           type: integer
           minimum: 5
           maximum: 10080
           default: 1440
-          description: How long an unconfirmed subscription waits before it expires, on any channel that requires confirmation.
+          description: |
+            How long a person has to confirm, on any channel that requires confirmation. A
+            subscription not confirmed in time becomes `EXPIRED` and is never sent to. Default 1440
+            (24 hours); at most 10080 (7 days).
         redirectUrl:
           type: [string, 'null']
           format: uri
-          description: Where the hosted pages send the person after they confirm or unsubscribe. If empty, CHOSEN shows its own page.
+          description: Where the hosted pages send the person after they confirm or unsubscribe, usually back to the tenant's app. If empty, CHOSEN shows its own page.
         channels:
           type: array
           minItems: 1
+          description: The channels the topic is offered on, each with its own settings.
           items: { $ref: '#/components/schemas/TopicChannel' }
         filterFields:
           type: array
+          description: The ways subscribers can narrow the topic. Leave it out for a topic everyone gets in full.
           items: { $ref: '#/components/schemas/FilterField' }
     TopicUpdate:
       type: object
+      description: Only the fields sent are changed.
       properties:
-        name: { type: string, maxLength: 200 }
-        description: { type: string, maxLength: 2000 }
-        pendingExpiryMinutes: { type: integer, minimum: 5, maximum: 10080 }
-        redirectUrl: { type: [string, 'null'], format: uri }
-        status: { $ref: '#/components/schemas/TopicStatus' }
+        name:
+          type: string
+          maxLength: 200
+          description: The topic's name as subscribers see it.
+        description:
+          type: string
+          maxLength: 2000
+          description: What subscribers will get. Shown on the hosted pages.
+        pendingExpiryMinutes:
+          type: integer
+          minimum: 5
+          maximum: 10080
+          description: How long a person has to confirm. Applies to subscriptions created from now on.
+        redirectUrl:
+          type: [string, 'null']
+          format: uri
+          description: Where the hosted pages send the person afterwards. `null` to use CHOSEN's own page.
+        status:
+          $ref: '#/components/schemas/TopicStatus'
+          description: Set to `ARCHIVED` to stop offering the topic, or `ACTIVE` to bring it back.
     Topic:
       allOf:
         - $ref: '#/components/schemas/TopicCreate'
         - type: object
           required: [id, status, createdAt, updatedAt]
           properties:
-            id: { type: string, format: uuid }
+            id:
+              type: string
+              format: uuid
+              description: CHOSEN's ID for the topic. The fixed "manage subscriptions" link uses it.
             status: { $ref: '#/components/schemas/TopicStatus' }
             manageUrl:
               type: string
               format: uri
               description: The fixed "manage subscriptions" link for this topic, for use in templates.
-            createdAt: { type: string, format: date-time }
-            updatedAt: { type: string, format: date-time }
+            createdAt:
+              type: string
+              format: date-time
+              description: When the topic was created.
+            updatedAt:
+              type: string
+              format: date-time
+              description: When the topic, its channels or its filter fields last changed.
 
     # ----------------------------------------------------- Subscriptions
     SubscriptionStatus:
       type: string
       enum: [PENDING, ACTIVE, UNSUBSCRIBED, EXPIRED]
+      description: |
+        `PENDING`: waiting for the person to confirm.
+        `ACTIVE`: receiving messages, unless the address is suppressed.
+        `UNSUBSCRIBED`: the person, or the tenant, stopped it.
+        `EXPIRED`: never confirmed in time; nothing was ever sent to it.
     ConsentEvidence:
       type: object
       description: How the person agreed. Stored as consent evidence.
@@ -1681,7 +2913,10 @@ components:
         sourceIp:
           type: string
           description: The person's IP address, if the tenant has it.
-        userAgent: { type: string, maxLength: 500 }
+        userAgent:
+          type: string
+          maxLength: 500
+          description: The person's browser user agent, if the tenant has it.
         actor:
           type: string
           maxLength: 200
@@ -1690,51 +2925,112 @@ components:
       type: object
       required: [channel, address, consent]
       properties:
-        channel: { $ref: '#/components/schemas/Channel' }
-        address: { $ref: '#/components/schemas/Address' }
+        channel:
+          $ref: '#/components/schemas/Channel'
+          description: How the person wants to receive messages. The topic must offer this channel.
+        address:
+          $ref: '#/components/schemas/Address'
+          description: The email address or phone number to send to, matching `channel`.
         externalSubjectId:
           type: string
           maxLength: 200
           description: The tenant's own ID for the person, e.g. a user ID or BCSC GUID. Stored, never resolved.
-        filters: { $ref: '#/components/schemas/Filters' }
-        consent: { $ref: '#/components/schemas/ConsentEvidence' }
+        filters:
+          $ref: '#/components/schemas/Filters'
+          description: The values the person chose for the topic's filter fields.
+        consent:
+          $ref: '#/components/schemas/ConsentEvidence'
+          description: How the person agreed, kept as proof.
     SubscriptionUpdate:
       type: object
       required: [filters]
       properties:
-        filters: { $ref: '#/components/schemas/Filters' }
-        actor: { type: string, maxLength: 200 }
+        filters:
+          $ref: '#/components/schemas/Filters'
+          description: The new values. A field left out keeps its values; an empty array matches anything.
+        actor:
+          type: string
+          maxLength: 200
+          description: Who made the change, as recorded by the tenant, e.g. a staff user ID.
     Subscription:
       type: object
+      description: One contact subscribed to one topic.
       required: [id, topicKey, contactId, channel, address, status, filters, suppressed, createdAt]
       properties:
-        id: { type: string, format: uuid }
-        topicKey: { $ref: '#/components/schemas/TopicKey' }
-        contactId: { type: string, format: uuid }
-        channel: { $ref: '#/components/schemas/Channel' }
-        address: { $ref: '#/components/schemas/Address' }
-        externalSubjectId: { type: [string, 'null'] }
+        id:
+          type: string
+          format: uuid
+          description: CHOSEN's ID for the subscription.
+        topicKey:
+          $ref: '#/components/schemas/TopicKey'
+          description: The topic subscribed to.
+        contactId:
+          type: string
+          format: uuid
+          description: The contact (address) that's subscribed.
+        channel:
+          $ref: '#/components/schemas/Channel'
+          description: How messages are delivered.
+        address:
+          $ref: '#/components/schemas/Address'
+          description: Where messages are sent.
+        externalSubjectId:
+          type: [string, 'null']
+          description: The tenant's own ID for the person, if it gave one.
         status: { $ref: '#/components/schemas/SubscriptionStatus' }
-        filters: { $ref: '#/components/schemas/Filters' }
+        filters:
+          $ref: '#/components/schemas/Filters'
+          description: The values the person chose for the topic's filter fields.
         suppressed:
           type: boolean
           description: The address is suppressed, so it isn't returned as a recipient even if active.
-        createdAt: { type: string, format: date-time }
-        confirmedAt: { type: [string, 'null'], format: date-time }
-        unsubscribedAt: { type: [string, 'null'], format: date-time }
-        pendingExpiresAt: { type: [string, 'null'], format: date-time }
+        createdAt:
+          type: string
+          format: date-time
+          description: When the person subscribed, or last subscribed again.
+        confirmedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When the person confirmed, or became active straight away; `null` while pending.
+        unsubscribedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When the subscription was unsubscribed; `null` otherwise.
+        pendingExpiresAt:
+          type: [string, 'null']
+          format: date-time
+          description: When a pending subscription will expire if not confirmed; `null` once it isn't pending.
 
     # ---------------------------------------------------------- Contacts
     Contact:
       type: object
+      description: |
+        One email address or phone number that belongs to one tenant, and the person behind it.
+        CHOSEN creates contacts as people subscribe. A contact holds the address once, however
+        many of the tenant's topics it's subscribed to. The same address used with two tenants
+        is two contacts.
       required: [id, channel, address, suppressed]
       properties:
-        id: { type: string, format: uuid }
-        channel: { $ref: '#/components/schemas/Channel' }
-        address: { $ref: '#/components/schemas/Address' }
-        externalSubjectId: { type: [string, 'null'] }
-        verifiedAt: { type: [string, 'null'], format: date-time }
-        suppressed: { type: boolean }
+        id:
+          type: string
+          format: uuid
+          description: CHOSEN's ID for the contact.
+        channel:
+          $ref: '#/components/schemas/Channel'
+          description: Whether the address is an email address or a phone number.
+        address:
+          $ref: '#/components/schemas/Address'
+          description: The email address or phone number.
+        externalSubjectId:
+          type: [string, 'null']
+          description: The tenant's own ID for the person, if it gave one.
+        verifiedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When the person first confirmed this address; `null` if they haven't yet.
+        suppressed:
+          type: boolean
+          description: The address is suppressed, so nothing is sent to it until the suppression is lifted.
         replacedBy:
           type: [string, 'null']
           format: uuid
@@ -1747,19 +3043,28 @@ components:
           properties:
             subscriptions:
               type: array
+              description: Every subscription this contact has with the tenant, in any status.
               items: { $ref: '#/components/schemas/Subscription' }
 
     # ------------------------------------------------------ Suppressions
     Suppression:
       type: object
+      description: An address that must not be sent to, without deleting its subscriptions.
       required: [id, channel, address, scope, suppressedAt]
       properties:
-        id: { type: string, format: uuid }
-        channel: { $ref: '#/components/schemas/Channel' }
+        id:
+          type: string
+          format: uuid
+          description: CHOSEN's ID for the suppression.
+        channel:
+          $ref: '#/components/schemas/Channel'
+          description: Whether an email address or a phone number is suppressed.
         address:
           $ref: '#/components/schemas/Address'
           description: Shown from the tenant's matching contact; CHOSEN stores only a hash.
-        sender: { type: [string, 'null'] }
+        sender:
+          type: [string, 'null']
+          description: SMS only. The sender number the suppression applies to, e.g. the number the person texted `STOP` to. `null` means every sender.
         scope:
           type: string
           enum: [TENANT, SHARED]
@@ -1768,51 +3073,98 @@ components:
           type: [string, 'null']
           enum: [MANUAL, COMPLAINT, null]
           description: Only shown for the tenant's own suppressions.
-        note: { type: [string, 'null'] }
-        suppressedAt: { type: string, format: date-time }
-        liftedAt: { type: [string, 'null'], format: date-time }
+        note:
+          type: [string, 'null']
+          description: The tenant's note on why it suppressed the address. Only on the tenant's own suppressions.
+        suppressedAt:
+          type: string
+          format: date-time
+          description: When the suppression started.
+        liftedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When it was lifted; `null` while it's in force.
 
     # ----------------------------------------------------------- History
     ConsentEvent:
       type: object
+      description: A permanent record of one change to a subscription. Never edited or deleted.
       required: [id, subscriptionId, action, method, occurredAt]
       properties:
-        id: { type: string, format: uuid }
-        subscriptionId: { type: string, format: uuid }
+        id:
+          type: string
+          format: uuid
+          description: CHOSEN's ID for the event.
+        subscriptionId:
+          type: string
+          format: uuid
+          description: The subscription that changed.
         action:
           type: string
           enum: [OPT_IN, CONFIRM, EXPIRE, FILTERS_CHANGED, OPT_OUT, ADDRESS_CHANGED]
+          description: What happened.
         method:
           type: string
           enum: [WEB_FORM, ASSISTED, API, IMPORT, CONFIRM_LINK, SMS_REPLY, UNSUBSCRIBE_LINK, ONE_CLICK, MANAGE_PAGE, SMS_KEYWORD, SYSTEM]
-        text: { type: [string, 'null'] }
-        actor: { type: [string, 'null'] }
-        sourceIp: { type: [string, 'null'] }
-        userAgent: { type: [string, 'null'] }
+          description: How it happened, e.g. the tenant's form, a reply to a text, or CHOSEN itself (`SYSTEM`, for expiry).
+        text:
+          type: [string, 'null']
+          description: The wording the person was shown. For `OPT_IN`, what the tenant sent; for `CONFIRM`, the message CHOSEN sent.
+        actor:
+          type: [string, 'null']
+          description: Who acted, if it wasn't the person themselves, e.g. a staff user ID.
+        sourceIp:
+          type: [string, 'null']
+          description: The IP address the change came from, if known.
+        userAgent:
+          type: [string, 'null']
+          description: The browser user agent the change came from, if known.
         filters:
           description: The filters after the change, for `OPT_IN` and `FILTERS_CHANGED`.
           oneOf:
             - $ref: '#/components/schemas/Filters'
             - type: 'null'
-        occurredAt: { type: string, format: date-time }
+        occurredAt:
+          type: string
+          format: date-time
+          description: When it happened.
     AuditEvent:
       type: object
+      description: A change to the tenant's topics or settings. Subscription changes are consent events instead.
       required: [id, entityType, entityId, action, occurredAt]
       properties:
-        id: { type: string, format: uuid }
-        entityType: { type: string }
-        entityId: { type: string, format: uuid }
-        action: { type: string, enum: [CREATE, UPDATE, DELETE] }
-        actor: { type: [string, 'null'] }
+        id:
+          type: string
+          format: uuid
+          description: CHOSEN's ID for the event.
+        entityType:
+          type: string
+          description: The kind of thing that changed, e.g. `TOPIC` or `FILTER_FIELD`.
+        entityId:
+          type: string
+          format: uuid
+          description: The ID of the thing that changed.
+        action:
+          type: string
+          enum: [CREATE, UPDATE, DELETE]
+          description: Whether it was created, changed or removed.
+        actor:
+          type: [string, 'null']
+          description: Who made the change, e.g. a staff user or a client ID.
         changes:
           type: object
           description: Changed fields, each with `from` and `to`.
           additionalProperties:
             type: object
             properties:
-              from: {}
-              to: {}
-        occurredAt: { type: string, format: date-time }
+              from:
+                description: The value before.
+              to:
+                description: The value after.
+        occurredAt:
+          type: string
+          format: date-time
+          description: When it happened.
 
     # -------------------------------------------------------- Recipients
     RecipientQuery:
@@ -1822,8 +3174,12 @@ components:
         tenantId:
           type: string
           description: The CSTAR tenant ID that Notify is sending for.
-        topicKey: { $ref: '#/components/schemas/TopicKey' }
-        channel: { $ref: '#/components/schemas/Channel' }
+        topicKey:
+          $ref: '#/components/schemas/TopicKey'
+          description: The topic the message is about.
+        channel:
+          $ref: '#/components/schemas/Channel'
+          description: The channel Notify is sending on.
         sender:
           type: string
           description: Required for SMS. The number Notify will send from, used to apply `STOP` suppressions.
@@ -1831,20 +3187,33 @@ components:
         filters:
           $ref: '#/components/schemas/Filters'
           description: The event's values. A subscriber matches if, for every field they chose values for, at least one is in this list.
-        cursor: { type: string }
+        cursor:
+          type: string
+          description: The `nextCursor` from the previous page. Leave it out for the first page.
         limit:
           type: integer
           minimum: 1
           maximum: 1000
           default: 500
+          description: The most recipients to return in one page.
     Recipient:
       type: object
+      description: One person to send the message to.
       required: [subscriptionId, channel, address, unsubscribeUrl]
       properties:
-        subscriptionId: { type: string, format: uuid }
-        channel: { $ref: '#/components/schemas/Channel' }
-        address: { $ref: '#/components/schemas/Address' }
-        externalSubjectId: { type: [string, 'null'] }
+        subscriptionId:
+          type: string
+          format: uuid
+          description: The subscription this recipient matched through. Send it back in delivery events.
+        channel:
+          $ref: '#/components/schemas/Channel'
+          description: The channel to send on.
+        address:
+          $ref: '#/components/schemas/Address'
+          description: Where to send it.
+        externalSubjectId:
+          type: [string, 'null']
+          description: The tenant's own ID for the person, if it gave one.
         unsubscribeUrl:
           type: string
           format: uri
@@ -1857,8 +3226,11 @@ components:
       properties:
         items:
           type: array
+          description: The recipients on this page.
           items: { $ref: '#/components/schemas/Recipient' }
-        nextCursor: { type: [string, 'null'] }
+        nextCursor:
+          type: [string, 'null']
+          description: Pass as `cursor` for the next page; `null` on the last page. Valid for 15 minutes.
         manageUrl:
           type: string
           format: uri
@@ -1878,15 +3250,24 @@ components:
         to:
           type: string
           description: The sender number or short code the text was sent to.
-        body: { type: string, maxLength: 1600 }
+        body:
+          type: string
+          maxLength: 1600
+          description: What the person texted, e.g. `ROADS OFF`.
         provider:
           type: string
+          description: The SMS provider that received the text.
           examples: [ACS, AWS, TWILIO]
-        providerMessageId: { type: string }
+        providerMessageId:
+          type: string
+          description: The provider's ID for the text, for tracing.
         providerOptOutApplied:
           type: boolean
           description: The provider reports it has already opted the number out (or back in).
-        receivedAt: { type: string, format: date-time }
+        receivedAt:
+          type: string
+          format: date-time
+          description: When the provider received the text.
     InboundSmsResult:
       type: object
       required: [outcome]
@@ -1895,6 +3276,7 @@ components:
           type: string
           enum: [STOP_APPLIED, START_APPLIED, KEYWORD_OPT_OUT, KEYWORD_NOT_SUBSCRIBED, CONFIRMED, CONFIRM_AMBIGUOUS, NOTHING_TO_CONFIRM, HELP_SENT, UNRECOGNISED, DUPLICATE]
           description: |
+            What CHOSEN did with the text.
             `CONFIRMED`: a pending subscription became `ACTIVE`.
             `CONFIRM_AMBIGUOUS`: a plain `YES` matched several pending subscriptions; none was confirmed.
             `NOTHING_TO_CONFIRM`: a `YES` matched no pending subscription, e.g. it had expired.
@@ -1905,15 +3287,22 @@ components:
       type: object
       required: [eventId, type, channel, address, occurredAt]
       properties:
-        eventId: { type: string }
+        eventId:
+          type: string
+          description: Notify's ID for this event. Used to ignore repeat deliveries.
         type:
           type: string
           enum: [EMAIL_HARD_BOUNCE, EMAIL_COMPLAINT, SMS_OPTED_OUT]
+          description: What happened to the message; see `receiveDeliveryEvent` for what CHOSEN does with each.
         tenantId:
           type: string
           description: The CSTAR tenant ID the message was sent for. Required for `EMAIL_COMPLAINT`.
-        channel: { $ref: '#/components/schemas/Channel' }
-        address: { $ref: '#/components/schemas/Address' }
+        channel:
+          $ref: '#/components/schemas/Channel'
+          description: The channel the message was sent on.
+        address:
+          $ref: '#/components/schemas/Address'
+          description: The address the message was sent to.
         sender:
           type: string
           description: Required for `SMS_OPTED_OUT`.
@@ -1921,56 +3310,93 @@ components:
           type: string
           format: uuid
           description: If Notify knows which subscription the message was sent for.
-        occurredAt: { type: string, format: date-time }
+        occurredAt:
+          type: string
+          format: date-time
+          description: When the provider reported it.
 
     # ------------------------------------------------------------ Public
     PublicSubscriptionSummary:
       type: object
+      description: What a hosted page shows about the subscription a link belongs to.
       required: [topicName, tenantName, channel, maskedAddress, status]
       properties:
-        topicName: { type: string }
-        topicDescription: { type: [string, 'null'] }
-        tenantName: { type: string }
-        channel: { $ref: '#/components/schemas/Channel' }
+        topicName:
+          type: string
+          description: The topic's name, as subscribers see it.
+        topicDescription:
+          type: [string, 'null']
+          description: The topic's description, if it has one.
+        tenantName:
+          type: string
+          description: The name of the service the subscription is with.
+        channel:
+          $ref: '#/components/schemas/Channel'
+          description: How the person receives messages.
         maskedAddress:
           type: string
+          description: The address with most of it hidden, so the person can recognise it without the page revealing it.
           examples: ['p***n@example.com', '+1250***0123']
         status: { $ref: '#/components/schemas/SubscriptionStatus' }
     PublicActionResult:
       type: object
       required: [status]
       properties:
-        status: { $ref: '#/components/schemas/SubscriptionStatus' }
+        status:
+          $ref: '#/components/schemas/SubscriptionStatus'
+          description: The subscription's status after the action.
         redirectUrl:
           type: [string, 'null']
           format: uri
           description: The topic's redirect, if it has one; otherwise the page shows its own message.
     PublicManageView:
       type: object
+      description: What the manage page shows the signed-in person.
       required: [tenantName, channel, maskedAddress, subscriptions]
       properties:
-        tenantName: { type: string }
-        channel: { $ref: '#/components/schemas/Channel' }
-        maskedAddress: { type: string }
-        expiresAt: { type: string, format: date-time }
+        tenantName:
+          type: string
+          description: The name of the service the subscriptions are with.
+        channel:
+          $ref: '#/components/schemas/Channel'
+          description: Whether the person signed in with an email address or a phone number.
+        maskedAddress:
+          type: string
+          description: The address with most of it hidden.
+        expiresAt:
+          type: string
+          format: date-time
+          description: When the sign-in link stops working.
         subscriptions:
           type: array
+          description: The person's subscriptions with this tenant.
           items:
             type: object
             required: [id, topicName, status, filters, filterFields]
             properties:
-              id: { type: string, format: uuid }
-              topicName: { type: string }
-              topicDescription: { type: [string, 'null'] }
+              id:
+                type: string
+                format: uuid
+                description: The subscription's ID, used to change or unsubscribe it.
+              topicName:
+                type: string
+                description: The topic's name.
+              topicDescription:
+                type: [string, 'null']
+                description: The topic's description, if it has one.
               status: { $ref: '#/components/schemas/SubscriptionStatus' }
-              filters: { $ref: '#/components/schemas/Filters' }
+              filters:
+                $ref: '#/components/schemas/Filters'
+                description: The values the person has chosen.
               filterFields:
                 type: array
+                description: The topic's filter fields, so the page can offer the choices.
                 items: { $ref: '#/components/schemas/FilterField' }
 
     # ------------------------------------------------------- Credentials
     ApiClient:
       type: object
+      description: Client credentials a service uses to call CHOSEN. The secret is never included.
       required: [clientId, label, issuedAt, issuedBy]
       properties:
         clientId:
@@ -1981,16 +3407,30 @@ components:
           examples: [D5C97345-4B7E21C09A6]
         label:
           type: string
+          description: The name given when the credentials were created, to tell them apart.
           examples: [Road closures app (PROD)]
         systemRole:
           type: [string, 'null']
           enum: [NOTIFY, null]
           description: Set only on system credentials; tenant credentials have `null`.
-        issuedBy: { type: string, description: Who created the credentials. }
-        issuedAt: { type: string, format: date-time }
-        rotatedAt: { type: [string, 'null'], format: date-time }
-        revokedBy: { type: [string, 'null'] }
-        revokedAt: { type: [string, 'null'], format: date-time }
+        issuedBy:
+          type: string
+          description: Who created the credentials.
+        issuedAt:
+          type: string
+          format: date-time
+          description: When the credentials were created.
+        rotatedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When the secret was last replaced; `null` if never.
+        revokedBy:
+          type: [string, 'null']
+          description: Who revoked the credentials; `null` if they're still in use.
+        revokedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When they were revoked; `null` if they're still in use.
     IssuedApiClient:
       description: Returned only when credentials are created or rotated.
       allOf:
@@ -2019,17 +3459,40 @@ components:
       type: object
       required: [systemRole, label]
       properties:
-        systemRole: { type: string, enum: [NOTIFY] }
-        label: { type: string, maxLength: 100, examples: [Notify PROD] }
+        systemRole:
+          type: string
+          enum: [NOTIFY]
+          description: The system the credentials are for.
+        label:
+          type: string
+          maxLength: 100
+          description: Tells the system credentials apart, e.g. by environment.
+          examples: [Notify PROD]
 
     # ------------------------------------------------------------- Admin
     Tenant:
       type: object
+      description: A service that uses CHOSEN.
       required: [id, externalId, name, slug, status]
       properties:
-        id: { type: string, format: uuid }
-        externalId: { type: string }
-        name: { type: string }
-        slug: { type: string }
-        status: { type: string, enum: [ACTIVE, SUSPENDED] }
-        createdAt: { type: string, format: date-time }
+        id:
+          type: string
+          format: uuid
+          description: CHOSEN's ID for the tenant.
+        externalId:
+          type: string
+          description: The CSTAR tenant ID, the same one Notify uses.
+        name:
+          type: string
+          description: The service's name, shown to subscribers on the hosted pages.
+        slug:
+          type: string
+          description: A short, URL-safe name for the tenant.
+        status:
+          type: string
+          enum: [ACTIVE, SUSPENDED]
+          description: '`SUSPENDED`: its API calls are refused and its topics return no recipients.'
+        createdAt:
+          type: string
+          format: date-time
+          description: When the tenant was registered.
